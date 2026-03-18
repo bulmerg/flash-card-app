@@ -695,17 +695,28 @@ function StudyView({ activeCard, currentIndex, total, flipped, onFlip, onPrev, o
 }
 
 function QuizView({ cards }) {
+  const [quizDeck, setQuizDeck] = useState(() =>
+    cards.length ? shuffle([...cards], Date.now() + Math.random() * 1e6) : []
+  )
   const [quizIndex, setQuizIndex] = useState(0)
   const [userAnswer, setUserAnswer] = useState('')
   const [submitted, setSubmitted] = useState(false)
   const [wasCorrect, setWasCorrect] = useState(false)
-  const totalRef = useRef(cards.length)
-  totalRef.current = cards.length
+  const totalRef = useRef(0)
+  totalRef.current = quizDeck.length
 
-  const card = cards[quizIndex] || null
-  console.log(quizIndex, cards);
+  useEffect(() => {
+    if (!cards.length) {
+      setQuizDeck([])
+      return
+    }
+    setQuizDeck(shuffle([...cards], Date.now() + Math.random() * 1e6))
+    setQuizIndex(0)
+  }, [cards])
+
+  const card = quizDeck[quizIndex] || null
   const questionType = card?.why ? (quizIndex % 2 === 0 ? 'what' : 'why') : 'what'
-  const total = cards.length
+  const total = quizDeck.length
 
   function handleSubmit(e) {
     e?.preventDefault()
@@ -717,10 +728,7 @@ function QuizView({ cards }) {
   }
 
   function handleNext() {
-    console.log('handleNext', totalRef.current)
     const n = Math.max(totalRef.current, 1)
-    console.log('handleNext', n)
-    console.log('totalRef', totalRef.current);
     setQuizIndex(prev => (prev + 1) % n)
     setUserAnswer('')
     setSubmitted(false)
