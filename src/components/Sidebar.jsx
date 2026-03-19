@@ -39,7 +39,7 @@ export default function Sidebar() {
   return (
     <aside className="sidebar glass">
       <div>
-        <div className="eyebrow">FlashForge Pro</div>
+        <div className="eyebrow">InterviewForge Pro</div>
         <h1>Stop memorizing. Start thinking like a senior engineer.</h1>
         <p className="muted">Build a focused study set, create interview-ready cards, and practice what, why, when, and tradeoffs.</p>
       </div>

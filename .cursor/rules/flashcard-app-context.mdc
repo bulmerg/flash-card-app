@@ -3,19 +3,19 @@ description: Flashcard app project context — stack, structure, data model, vie
 alwaysApply: true
 ---
 
-# FlashForge Study Deck — Project Context
+# InterviewForge Study Deck — Project Context
 
 ## Project
 
 Local-first interview flashcards app: import CSV decks, filter by tags, study with spaced repetition (SRS), browse cards, view analytics and weak areas, and run an "interview simulation" with N random prompts.
 
-- **Name**: FlashForge Pro / flashforge-study-deck (package name: `flashforge-decks-v2` in code).
+- **Name**: InterviewForge Pro / interviewforge-study-deck (package name: `interviewforge-decks-v2` in code).
 - **Entry**: `index.html` → `src/main.jsx` → `App` from `src/App.jsx`. Single global CSS: `src/styles.css`.
 
 ## Stack
 
 - **React 18** (no router); **Vite 5** with `@vitejs/plugin-react`. ES modules, no TypeScript.
-- **No backend**: all state in React; persistence via `localStorage` key `flashforge-decks-v2`.
+- **No backend**: all state in React; persistence via `localStorage` key `interviewforge-decks-v2`.
 - **Sample data**: CSV files in `public/data/` — `batch1.csv`, `batch2.csv`, `batch3.csv` (four-column: front, back, why, tags). Fetched at runtime if no saved deck.
 
 ## Repo structure

@@ -19,7 +19,7 @@ import useDeckImport from './hooks/useDeckImport'
 import useStudySession from './hooks/useStudySession'
 import useDifficultyFilters from './hooks/useDifficultyFilters'
 
-const INITIAL_SAMPLE_FILE = '/data/inital_cards.csv'
+const INITIAL_SAMPLE_FILE = '/data/initial_cards.csv'
 
 export default function App() {
   const [cards, setCards] = useState([])
@@ -130,25 +130,25 @@ export default function App() {
     }
   }
 
-  function backupDeck() {
+  async function backupDeck() {
     const csv = deckToCsv(cards)
-    saveCsvBackupToLocalStorage(csv)
+    await saveCsvBackupToLocalStorage(csv)
     const now = new Date()
     const stamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = `${deckName || 'flashforge-deck'}-backup-${stamp}.csv`
+    link.download = `${deckName || 'interviewforge-deck'}-backup-${stamp}.csv`
     link.click()
     URL.revokeObjectURL(url)
-    setMessage(`Backup saved to browser storage and downloaded as CSV (${cards.length} cards).`)
+    setMessage(`Backup saved to IndexedDB and downloaded as CSV (${cards.length} cards).`)
   }
 
-  function restoreDeckFromBackup() {
-    const backup = readCsvBackupFromLocalStorage()
+  async function restoreDeckFromBackup() {
+    const backup = await readCsvBackupFromLocalStorage()
     if (!backup) {
-      setMessage('No local backup found yet. Create one with Backup CSV first.')
+      setMessage('No IndexedDB backup found yet. Create one with Backup CSV first.')
       return
     }
     const restored = dedupeCards(parseDeckCsv(backup, 'Local Backup'))

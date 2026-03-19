@@ -472,12 +472,12 @@ export function deckToCsv(cards, { includeIntrinsicDifficulty = true } = {}) {
   return [header, ...rows].join('\n')
 }
 
-export function exportDeck(cards, name = 'flashforge-deck') {
+export function exportDeck(cards, name = 'interviewforge-deck') {
   const blob = new Blob([deckToCsv(cards)], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
-  link.download = `${slugify(name) || 'flashforge-deck'}.csv`
+  link.download = `${slugify(name) || 'interviewforge-deck'}.csv`
   link.click()
   URL.revokeObjectURL(url)
 }

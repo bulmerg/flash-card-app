@@ -1,4 +1,4 @@
-# FlashForge Study Deck
+# InterviewForge Study Deck
 
 A React + Vite flashcard generator/viewer for technical interview prep.
 

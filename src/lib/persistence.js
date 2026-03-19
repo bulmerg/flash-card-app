@@ -1,25 +1,13 @@
 import Dexie from 'dexie'
 
-const DB_NAME = 'flashforge-study-deck'
+const DB_NAME = 'interviewforge-study-deck'
 const SNAPSHOT_KEY = 'deck-snapshot'
-const LEGACY_STORAGE_KEY = 'flashforge-decks-v2'
-const LOCAL_BACKUP_KEY = 'flashforge-backup-csv'
+const CSV_BACKUP_KEY = 'csv-backup'
 
 const db = new Dexie(DB_NAME)
 db.version(1).stores({
   appState: '&key',
 })
-
-function readLegacyCards() {
-  try {
-    const raw = localStorage.getItem(LEGACY_STORAGE_KEY)
-    if (!raw) return null
-    const parsed = JSON.parse(raw)
-    return Array.isArray(parsed) ? parsed : null
-  } catch {
-    return null
-  }
-}
 
 export async function readAppState() {
   const snapshot = await db.table('appState').get(SNAPSHOT_KEY)
@@ -29,13 +17,6 @@ export async function readAppState() {
       deckName: snapshot.value.deckName || 'Senior Engineer Study',
       source: 'indexeddb',
     }
-  }
-
-  const legacyCards = readLegacyCards()
-  if (legacyCards) {
-    const migrated = { cards: legacyCards, deckName: 'Senior Engineer Study' }
-    await db.table('appState').put({ key: SNAPSHOT_KEY, value: migrated, updatedAt: Date.now() })
-    return { ...migrated, source: 'migrated-localstorage' }
   }
 
   return null
@@ -51,19 +32,23 @@ export async function writeAppState({ cards, deckName }) {
 
 export async function clearAppState() {
   await db.table('appState').delete(SNAPSHOT_KEY)
-  localStorage.removeItem(LEGACY_STORAGE_KEY)
 }
 
-export function saveCsvBackupToLocalStorage(csvText) {
-  localStorage.setItem(LOCAL_BACKUP_KEY, csvText)
+export async function saveCsvBackupToLocalStorage(csvText) {
+  await db.table('appState').put({
+    key: CSV_BACKUP_KEY,
+    value: { csv: String(csvText ?? '') },
+    updatedAt: Date.now(),
+  })
 }
 
-export function readCsvBackupFromLocalStorage() {
-  return localStorage.getItem(LOCAL_BACKUP_KEY)
+export async function readCsvBackupFromLocalStorage() {
+  const backup = await db.table('appState').get(CSV_BACKUP_KEY)
+  return String(backup?.value?.csv || '')
 }
 
-export function getCsvBackupInfo() {
-  const csv = localStorage.getItem(LOCAL_BACKUP_KEY)
+export async function getCsvBackupInfo() {
+  const csv = await readCsvBackupFromLocalStorage()
   if (!csv) return null
   const lines = csv.split('\n')
   const cardCount = Math.max(lines.length - 1, 0)
