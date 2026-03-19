@@ -34,7 +34,7 @@ export async function clearAppState() {
   await db.table('appState').delete(SNAPSHOT_KEY)
 }
 
-export async function saveCsvBackupToLocalStorage(csvText) {
+export async function saveCsvBackupToIndexedDb(csvText) {
   await db.table('appState').put({
     key: CSV_BACKUP_KEY,
     value: { csv: String(csvText ?? '') },
@@ -42,13 +42,13 @@ export async function saveCsvBackupToLocalStorage(csvText) {
   })
 }
 
-export async function readCsvBackupFromLocalStorage() {
+export async function readCsvBackupFromIndexedDb() {
   const backup = await db.table('appState').get(CSV_BACKUP_KEY)
   return String(backup?.value?.csv || '')
 }
 
-export async function getCsvBackupInfo() {
-  const csv = await readCsvBackupFromLocalStorage()
+export async function getCsvBackupInfoFromIndexedDb() {
+  const csv = await readCsvBackupFromIndexedDb()
   if (!csv) return null
   const lines = csv.split('\n')
   const cardCount = Math.max(lines.length - 1, 0)

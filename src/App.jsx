@@ -13,7 +13,7 @@ import TagGroups from './components/TagGroups'
 import StudyMode from './components/StudyMode'
 import AppContext from './context/AppContext'
 import { dedupeCards, deckToCsv, exportDeck, parseDeckCsv } from './lib/deckEngine'
-import { readAppState, readCsvBackupFromLocalStorage, saveCsvBackupToLocalStorage, writeAppState } from './lib/persistence'
+import { readAppState, readCsvBackupFromIndexedDb, saveCsvBackupToIndexedDb, writeAppState } from './lib/persistence'
 import { clampDifficulty } from './lib/shared'
 import useDeckImport from './hooks/useDeckImport'
 import useStudySession from './hooks/useStudySession'
@@ -132,7 +132,7 @@ export default function App() {
 
   async function backupDeck() {
     const csv = deckToCsv(cards)
-    await saveCsvBackupToLocalStorage(csv)
+    await saveCsvBackupToIndexedDb(csv)
     const now = new Date()
     const stamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
@@ -146,7 +146,7 @@ export default function App() {
   }
 
   async function restoreDeckFromBackup() {
-    const backup = await readCsvBackupFromLocalStorage()
+    const backup = await readCsvBackupFromIndexedDb()
     if (!backup) {
       setMessage('No IndexedDB backup found yet. Create one with Backup CSV first.')
       return
