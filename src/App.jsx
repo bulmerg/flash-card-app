@@ -6,6 +6,7 @@ import SimulationViewComponent from './components/views/SimulationView'
 import CreateViewComponent from './components/views/CreateView'
 import ImportViewComponent from './components/views/ImportView'
 import HelpViewComponent from './components/views/HelpView'
+import LandingPage from './components/LandingPage'
 
 import Sidebar from './components/Sidebar'
 import Header from './components/Header'
@@ -13,7 +14,14 @@ import TagGroups from './components/TagGroups'
 import StudyMode from './components/StudyMode'
 import AppContext from './context/AppContext'
 import { dedupeCards, deckToCsv, exportDeck, parseDeckCsv } from './lib/deckEngine'
-import { readAppState, readCsvBackupFromIndexedDb, saveCsvBackupToIndexedDb, writeAppState } from './lib/persistence'
+import {
+  readAppState,
+  readCsvBackupFromIndexedDb,
+  readHasSeenOnboardingFromIndexedDb,
+  saveCsvBackupToIndexedDb,
+  writeAppState,
+  writeHasSeenOnboardingToIndexedDb,
+} from './lib/persistence'
 import { clampDifficulty } from './lib/shared'
 import useDeckImport from './hooks/useDeckImport'
 import useStudySession from './hooks/useStudySession'
@@ -25,6 +33,8 @@ export default function App() {
   const [cards, setCards] = useState([])
   const [deckName, setDeckName] = useState('Senior Engineer Study')
   const [hasHydrated, setHasHydrated] = useState(false)
+  const [hasSeenOnboarding, setHasSeenOnboarding] = useState(false)
+  const [hasResolvedOnboarding, setHasResolvedOnboarding] = useState(false)
   const [viewMode, setViewMode] = useState('study')
   const [simCount, setSimCount] = useState(12)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
@@ -106,6 +116,23 @@ export default function App() {
         await loadSamples([INITIAL_SAMPLE_FILE])
       }
       if (!cancelled) setHasHydrated(true)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const seen = await readHasSeenOnboardingFromIndexedDb()
+        if (!cancelled) setHasSeenOnboarding(seen)
+      } catch {
+        if (!cancelled) setHasSeenOnboarding(false)
+      } finally {
+        if (!cancelled) setHasResolvedOnboarding(true)
+      }
     })()
     return () => {
       cancelled = true
@@ -217,6 +244,12 @@ export default function App() {
     setCurrentIndex(0)
   }
 
+  function completeOnboardingAndNavigate(nextViewMode) {
+    setHasSeenOnboarding(true)
+    setViewMode(nextViewMode)
+    writeHasSeenOnboardingToIndexedDb(true).catch(() => {})
+  }
+
   const contextValue = {
     // Core data
     cards,
@@ -288,6 +321,20 @@ export default function App() {
 
   const showTagPanel = ['study', 'quiz', 'interview', 'analytics'].includes(viewMode)
   const contentGridClass = `content-grid ${showTagPanel ? '' : 'single-column'}`
+
+  if (!hasHydrated || !hasResolvedOnboarding) {
+    return null
+  }
+
+  if (!hasSeenOnboarding) {
+    return (
+      <LandingPage
+        hasCards={cards.length > 0}
+        onSelectPrimaryAction={completeOnboardingAndNavigate}
+        onSelectImport={() => completeOnboardingAndNavigate('import')}
+      />
+    )
+  }
 
   return (
     <AppContext.Provider value={contextValue}>

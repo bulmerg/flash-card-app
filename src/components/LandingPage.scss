@@ -1,0 +1,122 @@
+.onboarding-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.landing-card {
+  width: min(900px, 100%);
+  border-radius: 24px;
+  padding: 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.landing-header h1 {
+  margin-bottom: 10px;
+  max-width: 28ch;
+}
+
+.landing-header p {
+  max-width: 74ch;
+  margin-bottom: 0;
+}
+
+.landing-example {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.landing-example-line {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 10px;
+  align-items: baseline;
+  font-size: 0.94rem;
+}
+
+.landing-example-label {
+  color: var(--accent-2);
+  font-size: 0.77rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.landing-actions {
+  display: grid;
+  gap: 12px;
+}
+
+.landing-action-btn {
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  border-radius: 16px;
+  min-height: 72px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.98rem;
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+.landing-action-btn:hover {
+  transform: translateY(-1px);
+  border-color: rgba(110, 168, 254, 0.38);
+  background: rgba(110, 168, 254, 0.14);
+}
+
+.landing-action-btn:focus-visible {
+  outline: 2px solid rgba(110, 168, 254, 0.65);
+  outline-offset: 2px;
+}
+
+.landing-action-icon {
+  min-width: 20px;
+  text-align: center;
+  line-height: 1.6;
+}
+
+.landing-action-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  align-items: flex-start;
+}
+
+.landing-action-label {
+  font-weight: 600;
+}
+
+.landing-action-helper {
+  font-size: 0.84rem;
+  text-align: left;
+}
+
+.landing-import-btn {
+  align-self: flex-start;
+}
+
+.landing-status {
+  margin: 0;
+}
+
+@media (max-width: 760px) {
+  .landing-card {
+    padding: 22px;
+  }
+
+  .landing-example-line {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+}

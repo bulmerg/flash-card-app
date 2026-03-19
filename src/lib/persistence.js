@@ -3,6 +3,7 @@ import Dexie from 'dexie'
 const DB_NAME = 'interviewforge-study-deck'
 const SNAPSHOT_KEY = 'deck-snapshot'
 const CSV_BACKUP_KEY = 'csv-backup'
+const ONBOARDING_KEY = 'has-seen-onboarding'
 
 const db = new Dexie(DB_NAME)
 db.version(1).stores({
@@ -56,4 +57,17 @@ export async function getCsvBackupInfoFromIndexedDb() {
     cardCount,
     bytes: csv.length,
   }
+}
+
+export async function readHasSeenOnboardingFromIndexedDb() {
+  const record = await db.table('appState').get(ONBOARDING_KEY)
+  return Boolean(record?.value?.hasSeenOnboarding)
+}
+
+export async function writeHasSeenOnboardingToIndexedDb(hasSeenOnboarding) {
+  await db.table('appState').put({
+    key: ONBOARDING_KEY,
+    value: { hasSeenOnboarding: Boolean(hasSeenOnboarding) },
+    updatedAt: Date.now(),
+  })
 }
