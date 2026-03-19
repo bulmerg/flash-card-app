@@ -57,3 +57,11 @@ Local-first interview flashcards app: import CSV decks, filter by tags, study wi
 - Use existing CSS classes; add new ones in `styles.css` with same token and naming style.
 - Card identity: `card.id` (from import: `sourceName-index-slugify(front)`). Updates: immutable-style `setCards(prev => prev.map(...))`.
 - SRS: `calculateSrs(previousSrs, 'again'|'hard'|'good'|'easy')` returns next interval/ease/dueAt; review handler updates stats and history.
+## Resource constraints (16GB RAM)
+
+- Keep context narrow: prefer targeted file/symbol reads over broad repo scans.
+- Do not read or index generated/noise paths unless explicitly requested.
+- Respect `.cursorignore` and `.cursorindexingignore` as hard constraints for context retrieval.
+- For refactors, start with only impacted files, then expand scope only if needed.
+- Avoid attaching large assets/data files (especially `public/data/*.csv`) unless task requires them.
+- Prefer concise diffs and incremental edits over large sweeping rewrites.

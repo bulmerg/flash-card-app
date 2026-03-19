@@ -1,0 +1,56 @@
+.focus-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: min(980px, 100%);
+  margin: 0 auto;
+}
+
+.focus-topbar {
+  border-radius: 18px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.focus-title {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.focus-title .eyebrow {
+  margin-bottom: 0;
+}
+
+.focus-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.focus-progress {
+  color: var(--accent-2);
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.focus-main {
+  width: 100%;
+}
+
+@media (max-width: 760px) {
+  .focus-topbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .focus-topbar-actions {
+    justify-content: flex-start;
+  }
+}

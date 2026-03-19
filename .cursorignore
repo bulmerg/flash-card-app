@@ -1,0 +1,8 @@
+# Project-level Cursor ignore rules.
+# Keep only true sensitive files here
+.env
+.env.*
+*.pem
+*.key
+**/credentials.json
+**/secrets.json

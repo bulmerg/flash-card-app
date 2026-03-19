@@ -1,0 +1,13 @@
+# Generated/build artifacts
+dist/
+build/
+coverage/
+.vite/
+.cache/
+
+# Test artifacts / heavy fixtures
+**/__snapshots__/**
+**/fixtures/large/**
+
+# Large sample datasets (still accessible if explicitly opened)
+public/data/*.csv

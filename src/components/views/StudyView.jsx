@@ -19,7 +19,10 @@ export default function StudyView({
   onCardDifficulty,
   difficultyTargetMin,
   difficultyTargetMax,
+  studyViewMode = 'setup',
+  onEnterFocusMode,
 }) {
+  const isFocusMode = studyViewMode === 'focus'
   const detailSections = [
     { key: 'why', label: 'Why it matters', text: activeCard?.why || '' },
     { key: 'when', label: 'When to use', text: activeCard?.when || '' },
@@ -29,14 +32,19 @@ export default function StudyView({
   ].filter(item => item.text)
 
   return (
-    <div className="study-panel glass">
-      <div className="panel-header">
-        <h3>
-          Study mode
-          <InfoHint text="Reveal answer first, then grade recall with Again/Hard/Good/Easy to update scheduling." />
-        </h3>
-        <span>{total === 0 ? 'No cards' : `${currentIndex + 1} / ${total}`}</span>
-      </div>
+    <div className={`study-panel glass ${isFocusMode ? 'study-panel-focus' : ''}`}>
+      {!isFocusMode ? (
+        <div className="panel-header">
+          <h3>
+            Study mode
+            <InfoHint text="Reveal answer first, then grade recall with Again/Hard/Good/Easy to update scheduling." />
+          </h3>
+          <div className="study-header-actions">
+            <span>{total === 0 ? 'No cards' : `${currentIndex + 1} / ${total}`}</span>
+            <button type="button" className="btn smallish" onClick={onEnterFocusMode}>Enter Focus Mode</button>
+          </div>
+        </div>
+      ) : null}
       {!activeCard ? (
         <div className="empty-state">No cards match the current filters.</div>
       ) : (
@@ -46,19 +54,23 @@ export default function StudyView({
             <div className="flashcard-inner">
               <div className="card-meta">Question</div>
               <h4>{activeCard.front}</h4>
-              <div className="chip-row">{activeCard.tags.map(tag => <span className="tiny-chip" key={tag}>{tag}</span>)}</div>
-              <div className="meta-grid compact-study">
-                <IntrinsicDifficultyStepper
-                  value={getIntrinsicDifficulty(activeCard)}
-                  onDelta={onCardDifficulty}
-                  showEffective
-                  effectiveValue={getEffectiveDifficulty(activeCard)}
-                  showPersonal
-                  personalValue={getPersonalDifficulty(activeCard)}
-                />
-                <MiniMeta label="Status" value={activeCard.status} />
-                <MiniMeta label="Schedule" value={formatDue(activeCard.srs?.dueAt || Date.now())} />
-              </div>
+              {!isFocusMode ? (
+                <>
+                  <div className="chip-row">{activeCard.tags.map(tag => <span className="tiny-chip" key={tag}>{tag}</span>)}</div>
+                  <div className="meta-grid compact-study">
+                    <IntrinsicDifficultyStepper
+                      value={getIntrinsicDifficulty(activeCard)}
+                      onDelta={onCardDifficulty}
+                      showEffective
+                      effectiveValue={getEffectiveDifficulty(activeCard)}
+                      showPersonal
+                      personalValue={getPersonalDifficulty(activeCard)}
+                    />
+                    <MiniMeta label="Status" value={activeCard.status} />
+                    <MiniMeta label="Schedule" value={formatDue(activeCard.srs?.dueAt || Date.now())} />
+                  </div>
+                </>
+              ) : null}
               {!flipped && <div className="hint">Press Reveal answer</div>}
               {flipped && (
                 <div className="answer-block">
@@ -100,21 +112,25 @@ export default function StudyView({
             <button className="review-btn good" onClick={() => onReview('good')}>Good<br /><span>normal spacing</span></button>
             <button className="review-btn easy" onClick={() => onReview('easy')}>Easy<br /><span>longer gap</span></button>
           </div>
-          <p className="muted small">
+          {!isFocusMode ? (
+            <p className="muted small">
             Again = forgot, Hard = struggled, Good = solid recall, Easy = effortless recall.
             <InfoHint text="These grades change future due dates and the card's ease/personal difficulty profile." />
-          </p>
+            </p>
+          ) : null}
 
-          <div className="difficulty-main-bar top-gap">
-            <div className="difficulty-main-range">
-              <div className="muted small">
-                Difficulty range
-                <InfoHint text="Current filter target in Build Study Set. Cards outside this range are hidden from the active set." />
+          {!isFocusMode ? (
+            <div className="difficulty-main-bar top-gap">
+              <div className="difficulty-main-range">
+                <div className="muted small">
+                  Difficulty range
+                  <InfoHint text="Current filter target in Build Study Set. Cards outside this range are hidden from the active set." />
+                </div>
+                <div className="difficulty-range-title">{difficultyTargetMin}–{difficultyTargetMax}</div>
               </div>
-              <div className="difficulty-range-title">{difficultyTargetMin}–{difficultyTargetMax}</div>
+              <button className="btn" onClick={onStar}>Star / unstar</button>
             </div>
-            <button className="btn" onClick={onStar}>Star / unstar</button>
-          </div>
+          ) : null}
         </>
       )}
     </div>

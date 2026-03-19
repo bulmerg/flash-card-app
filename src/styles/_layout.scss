@@ -6,6 +6,10 @@
   min-height: 100vh;
 }
 
+.app-shell.focus-mode {
+  grid-template-columns: 1fr;
+}
+
 .app-shell.sidebar-collapsed {
   grid-template-columns: 0 1fr;
   gap: 0;

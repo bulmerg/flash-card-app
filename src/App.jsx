@@ -36,6 +36,7 @@ export default function App() {
   const [hasSeenOnboarding, setHasSeenOnboarding] = useState(false)
   const [hasResolvedOnboarding, setHasResolvedOnboarding] = useState(false)
   const [viewMode, setViewMode] = useState('study')
+  const [studyViewMode, setStudyViewMode] = useState('setup')
   const [simCount, setSimCount] = useState(12)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
@@ -250,6 +251,13 @@ export default function App() {
     writeHasSeenOnboardingToIndexedDb(true).catch(() => {})
   }
 
+  function handleSetViewMode(nextViewMode) {
+    setViewMode(nextViewMode)
+    if (nextViewMode !== 'study') {
+      setStudyViewMode('setup')
+    }
+  }
+
   const contextValue = {
     // Core data
     cards,
@@ -265,8 +273,9 @@ export default function App() {
 
     // View / layout
     viewMode,
+    studyViewMode,
     sidebarCollapsed,
-    onSetViewMode: setViewMode,
+    onSetViewMode: handleSetViewMode,
     onToggleSidebarCollapsed: () => setSidebarCollapsed(prev => !prev),
 
     // Sidebar controls
@@ -319,7 +328,10 @@ export default function App() {
     addCardsToDeck,
   }
 
-  const showTagPanel = ['study', 'quiz', 'interview', 'analytics'].includes(viewMode)
+  const isStudyFocusMode = viewMode === 'study' && studyViewMode === 'focus'
+  const showTagPanel = !isStudyFocusMode && ['study', 'quiz', 'interview', 'analytics'].includes(viewMode)
+  const showSidebar = !isStudyFocusMode
+  const showHeader = !isStudyFocusMode
   const contentGridClass = `content-grid ${showTagPanel ? '' : 'single-column'}`
 
   if (!hasHydrated || !hasResolvedOnboarding) {
@@ -338,16 +350,23 @@ export default function App() {
 
   return (
     <AppContext.Provider value={contextValue}>
-      <div className={`app-shell ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
-        <Sidebar />
+      <div className={`app-shell ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${isStudyFocusMode ? 'focus-mode' : ''}`}>
+        {showSidebar ? <Sidebar /> : null}
 
         <main className="main-area">
-          <Header />
+          {showHeader ? <Header /> : null}
 
           <section className={contentGridClass.trim()}>
             {showTagPanel ? <TagGroups /> : null}
 
-            {viewMode === 'study' && <StudyMode />}
+            {viewMode === 'study' && (
+              <StudyMode
+                studyViewMode={studyViewMode}
+                onEnterFocusMode={() => setStudyViewMode('focus')}
+                onExitFocusMode={() => setStudyViewMode('setup')}
+                onAdjustPractice={() => setStudyViewMode('setup')}
+              />
+            )}
 
             {viewMode === 'quiz' && <QuizViewComponent cards={quizCards} />}
 

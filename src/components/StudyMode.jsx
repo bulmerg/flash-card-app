@@ -1,7 +1,8 @@
 import StudyViewComponent from './views/StudyView'
+import StudyFocusLayout from './StudyFocusLayout'
 import { useAppContext } from '../context/AppContext'
 
-export default function StudyMode() {
+export default function StudyMode({ studyViewMode = 'setup', onEnterFocusMode, onExitFocusMode, onAdjustPractice }) {
   const {
     activeCard,
     currentIndex,
@@ -15,9 +16,10 @@ export default function StudyMode() {
     onCardDifficulty,
     difficultyTargetMin,
     difficultyTargetMax,
+    deckName,
   } = useAppContext()
 
-  return (
+  const studyView = (
     <StudyViewComponent
       activeCard={activeCard}
       currentIndex={currentIndex}
@@ -31,7 +33,27 @@ export default function StudyMode() {
       onCardDifficulty={onCardDifficulty}
       difficultyTargetMin={difficultyTargetMin}
       difficultyTargetMax={difficultyTargetMax}
+      studyViewMode={studyViewMode}
+      onEnterFocusMode={onEnterFocusMode}
     />
+  )
+
+  if (studyViewMode === 'focus') {
+    return (
+      <StudyFocusLayout
+        deckName={deckName}
+        currentIndex={currentIndex}
+        total={filteredCount}
+        onAdjustPractice={onAdjustPractice}
+        onExitFocusMode={onExitFocusMode}
+      >
+        {studyView}
+      </StudyFocusLayout>
+    )
+  }
+
+  return (
+    studyView
   )
 }
 
