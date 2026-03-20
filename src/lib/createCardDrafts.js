@@ -185,6 +185,55 @@ export function buildPasteNoteDrafts(rawText, tagsText = '') {
   return drafts.slice(0, 6)
 }
 
+export function buildQuickTopicDrafts(topic, context = '') {
+  const t = normalizeSentence(topic)
+  if (!t) return []
+  const ctx = normalizeSentence(context)
+  const tags = deriveTopicTags(t, '')
+  const ctxSuffix = ctx ? ` ${ctx}` : ''
+
+  const templates = [
+    {
+      front: `What is ${t}?`,
+      back: `${t} is a concept used in software engineering.${ctxSuffix}`,
+      why: `Understanding ${t} helps engineers make better design decisions.`,
+      intrinsicDifficulty: 2,
+    },
+    {
+      front: `Why is ${t} important?`,
+      back: `${t} matters because it affects reliability, performance, or maintainability.${ctxSuffix}`,
+      why: `Interviewers test whether you understand the reasoning behind ${t}, not just the definition.`,
+      intrinsicDifficulty: 3,
+    },
+    {
+      front: `When would you use ${t}?`,
+      back: `Use ${t} when the problem requires its specific strengths.${ctxSuffix}`,
+      when: `When the system needs the properties that ${t} provides.`,
+      intrinsicDifficulty: 3,
+    },
+    {
+      front: `What are the tradeoffs of ${t}?`,
+      back: `${t} introduces tradeoffs between complexity, performance, and simplicity.${ctxSuffix}`,
+      tradeoffs: `Weigh the cost of adopting ${t} against the problem it solves.`,
+      intrinsicDifficulty: 4,
+    },
+    {
+      front: `How would you explain ${t} to a non-technical stakeholder?`,
+      back: `Simplify ${t} by focusing on the problem it solves and the benefit it provides.${ctxSuffix}`,
+      why: `Senior engineers communicate across audiences, not just to other engineers.`,
+      intrinsicDifficulty: 4,
+    },
+    {
+      front: `What mistakes do engineers commonly make with ${t}?`,
+      back: `Common mistakes include misapplying ${t} or using it without understanding the tradeoffs.${ctxSuffix}`,
+      trap: `Interviewers look for awareness of pitfalls, not just textbook knowledge.`,
+      intrinsicDifficulty: 5,
+    },
+  ]
+
+  return templates.map((partial, i) => createDraft({ ...partial, tags }, i))
+}
+
 export function normalizeDraftForSave(draft) {
   return {
     front: normalizeSentence(draft.front),

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import {
   buildGuidedTopicDrafts,
   buildPasteNoteDrafts,
+  buildQuickTopicDrafts,
   normalizeDraftForSave,
 } from '../../lib/createCardDrafts'
 import InfoHint from '../InfoHint'
@@ -42,6 +43,10 @@ function DraftList({ drafts, setDrafts, title, onSaveSelected }) {
     setDrafts(prev => prev.map(draft => (draft.id === id ? { ...draft, [field]: value } : draft)))
   }
 
+  function removeDraft(id) {
+    setDrafts(prev => prev.filter(draft => draft.id !== id))
+  }
+
   function toggleAll(selectAll) {
     setDrafts(prev => prev.map(draft => ({ ...draft, selected: selectAll })))
   }
@@ -57,7 +62,7 @@ function DraftList({ drafts, setDrafts, title, onSaveSelected }) {
       <div className="button-row compact">
         <button type="button" className="btn smallish" onClick={() => toggleAll(true)}>Select all</button>
         <button type="button" className="btn smallish" onClick={() => toggleAll(false)}>Clear selection</button>
-        <button type="button" className="btn smallish primary" onClick={onSaveSelected}>Save selected</button>
+        <button type="button" className="btn smallish primary" onClick={onSaveSelected}>Add to Deck</button>
       </div>
       <div className="draft-list">
         {drafts.map(draft => (
@@ -71,9 +76,19 @@ function DraftList({ drafts, setDrafts, title, onSaveSelected }) {
                 />
                 Keep
               </label>
-              <span className={`draft-status ${isDraftReady(draft) ? 'ready' : 'needs-work'}`}>
-                {isDraftReady(draft) ? 'Ready to save' : 'Needs front + back'}
-              </span>
+              <div className="draft-top-actions">
+                <span className={`draft-status ${isDraftReady(draft) ? 'ready' : 'needs-work'}`}>
+                  {isDraftReady(draft) ? 'Ready' : 'Needs front + back'}
+                </span>
+                <button
+                  type="button"
+                  className="btn smallish danger draft-remove-btn"
+                  onClick={() => removeDraft(draft.id)}
+                  title="Remove this draft"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
             <input
               className="input"
@@ -123,7 +138,10 @@ function DraftList({ drafts, setDrafts, title, onSaveSelected }) {
 }
 
 export default function CreateView({ onAddCards, onMessage }) {
-  const [createMode, setCreateMode] = useState('guided')
+  const [createMode, setCreateMode] = useState('generate')
+  const [quickTopic, setQuickTopic] = useState('')
+  const [quickContext, setQuickContext] = useState('')
+  const [quickDrafts, setQuickDrafts] = useState([])
   const [guided, setGuided] = useState(EMPTY_GUIDED)
   const [guidedDrafts, setGuidedDrafts] = useState([])
   const [notesText, setNotesText] = useState('')
@@ -143,8 +161,17 @@ export default function CreateView({ onAddCards, onMessage }) {
     const saved = onAddCards(selected, 'Create')
     if (saved > 0) {
       setDrafts([])
-      onMessage(`Saved ${saved} new cards from drafts.`)
+      onMessage(`Added ${saved} cards to your deck.`)
     }
+  }
+
+  function generateQuickDrafts() {
+    if (!quickTopic.trim()) {
+      onMessage('Enter a topic to generate cards.')
+      return
+    }
+    const next = buildQuickTopicDrafts(quickTopic, quickContext)
+    setQuickDrafts(next)
   }
 
   function generateGuidedDrafts() {
@@ -168,59 +195,60 @@ export default function CreateView({ onAddCards, onMessage }) {
     const saved = onAddCards([normalized], 'Create')
     if (saved > 0) {
       setSingle(EMPTY_SINGLE)
-      onMessage('Single card saved to your deck.')
+      onMessage('Card added to your deck.')
     }
   }
+
+  const TABS = [
+    ['generate', 'Generate from Topic'],
+    ['notes', 'Paste Notes'],
+    ['guided', 'Guided Topic'],
+    ['single', 'Create Manually'],
+  ]
 
   return (
     <div className="create-panel glass">
       <div className="panel-header">
         <h3>
           Create cards
-          <InfoHint text="Draft first, edit quickly, then save only the cards you want in your deck." />
+          <InfoHint text="Generate interview-focused cards from a topic, or build them manually." />
         </h3>
-        <span>Build interview-ready cards without AI</span>
+        <span>Turn concepts into interview-ready explanations</span>
       </div>
-      <p className="muted small">
-        Train deeper interview thinking: what, why, when, tradeoffs, traps, and scenarios.
-      </p>
 
       <div className="segmented wrap-tabs">
-        {[
-          ['guided', 'Guided Topic'],
-          ['notes', 'Paste Notes'],
-          ['single', 'Single Card'],
-        ].map(([id, label]) => (
+        {TABS.map(([id, label]) => (
           <button key={id} className={createMode === id ? 'seg active' : 'seg'} onClick={() => setCreateMode(id)}>
             {label}
           </button>
         ))}
       </div>
 
-      {createMode === 'guided' ? (
+      {createMode === 'generate' ? (
         <section className="create-section top-gap">
           <div className="create-hint muted small">
-            Start with core concept notes, then generate 4-6 interview-focused drafts.
-            <InfoHint text="Guided Topic uses only your form input. It does not fetch external facts." />
+            Start with a concept. We'll generate interview-focused cards with placeholders that you can edit before saving.
           </div>
-          <div className="create-grid">
-            <input className="input" value={guided.topic} onChange={e => setGuided(prev => ({ ...prev, topic: e.target.value }))} placeholder="Topic (e.g., idempotency)" />
-            <input className="input" value={guided.tags} onChange={e => setGuided(prev => ({ ...prev, tags: e.target.value }))} placeholder="Tags (space or comma separated)" />
-            <textarea className="textarea" value={guided.definition} onChange={e => setGuided(prev => ({ ...prev, definition: e.target.value }))} placeholder="Definition" />
-            <textarea className="textarea" value={guided.whyItMatters} onChange={e => setGuided(prev => ({ ...prev, whyItMatters: e.target.value }))} placeholder="Why it matters" />
-            <textarea className="textarea" value={guided.whenToUse} onChange={e => setGuided(prev => ({ ...prev, whenToUse: e.target.value }))} placeholder="When to use" />
-            <textarea className="textarea" value={guided.tradeoffs} onChange={e => setGuided(prev => ({ ...prev, tradeoffs: e.target.value }))} placeholder="Tradeoffs" />
-            <textarea className="textarea" value={guided.trap} onChange={e => setGuided(prev => ({ ...prev, trap: e.target.value }))} placeholder="Common interview trap" />
-            <textarea className="textarea" value={guided.scenario} onChange={e => setGuided(prev => ({ ...prev, scenario: e.target.value }))} placeholder="Optional scenario" />
-          </div>
+          <input
+            className="input"
+            value={quickTopic}
+            onChange={e => setQuickTopic(e.target.value)}
+            placeholder="Topic (e.g., idempotency, event sourcing, cache invalidation)"
+          />
+          <textarea
+            className="textarea compact-textarea top-gap"
+            value={quickContext}
+            onChange={e => setQuickContext(e.target.value)}
+            placeholder="Optional context — add notes, definitions, or constraints to make cards more specific"
+          />
           <div className="button-row">
-            <button type="button" className="btn primary" onClick={generateGuidedDrafts}>Generate draft cards</button>
+            <button type="button" className="btn primary" onClick={generateQuickDrafts}>Generate Cards</button>
           </div>
           <DraftList
-            drafts={guidedDrafts}
-            setDrafts={setGuidedDrafts}
-            title="Guided topic drafts"
-            onSaveSelected={() => saveDraftSelection(guidedDrafts, setGuidedDrafts)}
+            drafts={quickDrafts}
+            setDrafts={setQuickDrafts}
+            title="Generated cards"
+            onSaveSelected={() => saveDraftSelection(quickDrafts, setQuickDrafts)}
           />
         </section>
       ) : null}
@@ -228,7 +256,7 @@ export default function CreateView({ onAddCards, onMessage }) {
       {createMode === 'notes' ? (
         <section className="create-section top-gap">
           <div className="create-hint muted small">
-            Paste bullets with enough substance. We only draft cards where notes have clear signal.
+            Paste bullets with enough substance. Cards are drafted where notes have clear signal.
             <InfoHint text="Best results include a definition plus why/when/tradeoff wording in the notes." />
           </div>
           <textarea
@@ -255,10 +283,38 @@ export default function CreateView({ onAddCards, onMessage }) {
         </section>
       ) : null}
 
+      {createMode === 'guided' ? (
+        <section className="create-section top-gap">
+          <div className="create-hint muted small">
+            Fill in structured fields for more control over generated cards.
+            <InfoHint text="Guided Topic uses only your form input. It does not fetch external facts." />
+          </div>
+          <div className="create-grid">
+            <input className="input" value={guided.topic} onChange={e => setGuided(prev => ({ ...prev, topic: e.target.value }))} placeholder="Topic (e.g., idempotency)" />
+            <input className="input" value={guided.tags} onChange={e => setGuided(prev => ({ ...prev, tags: e.target.value }))} placeholder="Tags (space or comma separated)" />
+            <textarea className="textarea" value={guided.definition} onChange={e => setGuided(prev => ({ ...prev, definition: e.target.value }))} placeholder="Definition" />
+            <textarea className="textarea" value={guided.whyItMatters} onChange={e => setGuided(prev => ({ ...prev, whyItMatters: e.target.value }))} placeholder="Why it matters" />
+            <textarea className="textarea" value={guided.whenToUse} onChange={e => setGuided(prev => ({ ...prev, whenToUse: e.target.value }))} placeholder="When to use" />
+            <textarea className="textarea" value={guided.tradeoffs} onChange={e => setGuided(prev => ({ ...prev, tradeoffs: e.target.value }))} placeholder="Tradeoffs" />
+            <textarea className="textarea" value={guided.trap} onChange={e => setGuided(prev => ({ ...prev, trap: e.target.value }))} placeholder="Common interview trap" />
+            <textarea className="textarea" value={guided.scenario} onChange={e => setGuided(prev => ({ ...prev, scenario: e.target.value }))} placeholder="Optional scenario" />
+          </div>
+          <div className="button-row">
+            <button type="button" className="btn primary" onClick={generateGuidedDrafts}>Generate draft cards</button>
+          </div>
+          <DraftList
+            drafts={guidedDrafts}
+            setDrafts={setGuidedDrafts}
+            title="Guided topic drafts"
+            onSaveSelected={() => saveDraftSelection(guidedDrafts, setGuidedDrafts)}
+          />
+        </section>
+      ) : null}
+
       {createMode === 'single' ? (
         <section className="create-section top-gap">
           <div className="create-hint muted small">
-            Use this for one high-quality card when you already know the exact prompt.
+            Full control over a single card when you know the exact prompt.
             <InfoHint text="Only Front and Back are required; other interview fields are optional but recommended." />
           </div>
           <div className="create-grid">

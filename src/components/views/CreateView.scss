@@ -54,6 +54,19 @@
   gap: 8px;
 }
 
+.draft-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.draft-remove-btn {
+  padding: 4px 8px !important;
+  font-size: 0.8rem !important;
+  min-width: 0;
+  line-height: 1;
+}
+
 .draft-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
