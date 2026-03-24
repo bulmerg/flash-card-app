@@ -54,7 +54,10 @@ export default function StudyView({
               <h4>{activeCard.front}</h4>
               {!isFocusMode ? (
                 <>
-                  <div className="chip-row">{(activeCard.tags || []).map(tag => <span className="tiny-chip" key={tag}>{tag}</span>)}</div>
+                  <div className="chip-row">
+                    {activeCard.topic ? <span className="tiny-chip topic-chip">{activeCard.topic}</span> : null}
+                    {(activeCard.subtopics || []).map(subtopic => <span className="tiny-chip" key={subtopic}>{subtopic}</span>)}
+                  </div>
                   <div className="study-meta">
                     <button
                       type="button"

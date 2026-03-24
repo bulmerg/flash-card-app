@@ -34,7 +34,10 @@ function CardRow({ card }) {
     <article className="browser-card" key={card.id}>
       <div className="card-meta-row">
         <div className="card-meta">Question</div>
-        <div className="chip-row">{(card.tags || []).map(tag => <span className="tiny-chip" key={`${card.id}-${tag}`}>{tag}</span>)}</div>
+        <div className="chip-row">
+          {card.topic ? <span className="tiny-chip topic-chip">{card.topic}</span> : null}
+          {(card.subtopics || []).map(subtopic => <span className="tiny-chip" key={`${card.id}-${subtopic}`}>{subtopic}</span>)}
+        </div>
       </div>
       <h4>{card.front}</h4>
       <ExpandableText text={card.back} label="Answer:" previewChars={180} modalTitle="Full answer" />

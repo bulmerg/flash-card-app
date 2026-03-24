@@ -13,7 +13,7 @@ import Header from './components/Header'
 import TagGroups from './components/TagGroups'
 import StudyMode from './components/StudyMode'
 import AppContext from './context/AppContext'
-import { dedupeCards, deckToCsv, exportDeck, parseDeckCsv } from './lib/deckEngine'
+import { dedupeCards, deckToCsv, exportDeck, normalizeClassification, parseDeckCsv } from './lib/deckEngine'
 import {
   readAppState,
   readCsvBackupFromIndexedDb,
@@ -70,8 +70,8 @@ export default function App() {
   } = useDeckImport({ cards, setCards })
 
   const {
-    includeTags,
-    excludeTags,
+    includedFocusTokens,
+    excludedFocusTokens,
     search,
     setSearch,
     currentIndex,
@@ -81,15 +81,16 @@ export default function App() {
     setShuffleSeed,
     dueOnly,
     setDueOnly,
-    groupedTags,
-    tagPerformance,
+    focusAreaGroups,
+    topicPerformance,
+    subtopicPerformance,
     weakCards,
     filteredCards,
     simulationCards,
     quizCards,
     activeCard,
-    toggleTag,
-    toggleTagGroup,
+    toggleFocusToken,
+    toggleFocusGroup,
     reviewCard,
     setCardDifficulty,
     toggleStar,
@@ -195,9 +196,17 @@ export default function App() {
     const now = Date.now()
     const newCards = (drafts || [])
       .map((draft, index) => {
-        const tags = Array.isArray(draft.tags)
-          ? draft.tags
-          : String(draft.tags || '').split(/\s+/).filter(Boolean)
+        const fallbackTokens = String(draft.tags || '')
+          .split(/[\s,]+/)
+          .map(token => token.trim())
+          .filter(Boolean)
+
+        const classification = normalizeClassification({
+          topic: draft.topic || fallbackTokens[0] || '',
+          subtopics: Array.isArray(draft.subtopics)
+            ? draft.subtopics
+            : fallbackTokens.slice(1, 4),
+        })
         const intrinsicDifficulty = clampDifficulty(Number(draft.intrinsicDifficulty || 2))
         return {
           id: `${sourceLabel}-${now}-${index}`,
@@ -208,7 +217,8 @@ export default function App() {
           tradeoffs: String(draft.tradeoffs || '').trim(),
           trap: String(draft.trap || '').trim(),
           scenario: String(draft.scenario || '').trim(),
-          tags,
+          topic: classification.topic,
+          subtopics: classification.subtopics,
           source: sourceLabel,
           status: 'new',
           intrinsicDifficulty,
@@ -263,9 +273,9 @@ export default function App() {
   const contextValue = {
     // Core data
     cards,
-    groupedTags,
-    includeTags,
-    excludeTags,
+    focusAreaGroups,
+    includedFocusTokens,
+    excludedFocusTokens,
     activeCard,
     currentIndex,
     filteredCount: filteredCards.length,
@@ -319,8 +329,8 @@ export default function App() {
     },
 
     // Study actions
-    toggleTag,
-    toggleTagGroup,
+    toggleFocusToken,
+    toggleFocusGroup,
     onFlip: () => setFlipped(prev => !prev),
     onPrev: prevCard,
     onNext: nextCard,
@@ -370,15 +380,21 @@ export default function App() {
               />
             )}
 
-            {viewMode === 'quiz' && <QuizViewComponent cards={quizCards} />}
-
-            {viewMode === 'analytics' && (
-              <AnalyticsViewComponent cards={cards} tagPerformance={tagPerformance} weakCards={weakCards} groupedTags={groupedTags} />
-            )}
-
-            {viewMode === 'interview' && (
+            {viewMode === 'quiz' && (
               <SimulationViewComponent cards={simulationCards} simCount={simCount} setSimCount={setSimCount} />
             )}
+
+            {viewMode === 'analytics' && (
+              <AnalyticsViewComponent
+                cards={cards}
+                topicPerformance={topicPerformance}
+                subtopicPerformance={subtopicPerformance}
+                weakCards={weakCards}
+                focusAreaGroups={focusAreaGroups}
+              />
+            )}
+
+            {viewMode === 'interview' && <QuizViewComponent cards={quizCards} />}
 
             {viewMode === 'create' && (
               <CreateViewComponent onAddCards={addCardsToDeck} onMessage={setMessage} />

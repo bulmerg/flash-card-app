@@ -61,6 +61,10 @@
   font-size: 1.1rem;
 }
 
+.quiz-feedback.partial strong {
+  color: var(--accent-2);
+}
+
 .quiz-feedback.wrong {
   color: var(--text);
 }

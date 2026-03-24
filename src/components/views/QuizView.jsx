@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import CardGlows from '../CardGlows'
-import ExpandableText from '../ExpandableText'
 import ReasoningSections from '../ReasoningSections'
-import { answerMatches, shuffle } from '../../lib/shared'
+import { scoreAnswer, shuffle } from '../../lib/shared'
 import './QuizView.scss'
 
 export default function QuizView({ cards }) {
@@ -12,17 +11,24 @@ export default function QuizView({ cards }) {
   const [quizIndex, setQuizIndex] = useState(0)
   const [userAnswer, setUserAnswer] = useState('')
   const [submitted, setSubmitted] = useState(false)
-  const [wasCorrect, setWasCorrect] = useState(false)
+  const [evaluation, setEvaluation] = useState(null)
   const totalRef = useRef(0)
   totalRef.current = quizDeck.length
 
   useEffect(() => {
     if (!cards.length) {
       setQuizDeck([])
+      setQuizIndex(0)
+      setUserAnswer('')
+      setSubmitted(false)
+      setEvaluation(null)
       return
     }
     setQuizDeck(shuffle([...cards], Date.now() + Math.random() * 1e6))
     setQuizIndex(0)
+    setUserAnswer('')
+    setSubmitted(false)
+    setEvaluation(null)
   }, [cards])
 
   const card = quizDeck[quizIndex] || null
@@ -33,8 +39,7 @@ export default function QuizView({ cards }) {
     e?.preventDefault()
     if (!card || !userAnswer.trim()) return
     const correct = questionType === 'what' ? card.back : card.why
-    const correctFlag = answerMatches(userAnswer.trim(), correct)
-    setWasCorrect(correctFlag)
+    setEvaluation(scoreAnswer(userAnswer.trim(), correct))
     setSubmitted(true)
   }
 
@@ -43,13 +48,14 @@ export default function QuizView({ cards }) {
     setQuizIndex(prev => (prev + 1) % n)
     setUserAnswer('')
     setSubmitted(false)
+    setEvaluation(null)
   }
 
   if (!total) {
     return (
       <div className="study-panel glass">
         <div className="panel-header">
-          <h3>Explore cards</h3>
+          <h3>Interview practice</h3>
         </div>
         <div className="empty-state">No cards match this setup yet. Adjust focus areas or practice all cards.</div>
       </div>
@@ -59,7 +65,7 @@ export default function QuizView({ cards }) {
   return (
     <div className="study-panel glass">
       <div className="panel-header">
-        <h3>Explore cards</h3>
+        <h3>Interview practice</h3>
         <span>{total === 0 ? '' : `${quizIndex + 1} / ${total}`}</span>
       </div>
       <div className="quiz-card" key={quizIndex}>
@@ -69,7 +75,6 @@ export default function QuizView({ cards }) {
           <h4>{card.front}</h4>
           {questionType === 'why' && (
             <div className="quiz-context">
-              <ExpandableText text={card.back} label="Answer:" previewChars={170} modalTitle="Full answer" />
               <p className="quiz-prompt">Why does this matter in an interview answer?</p>
             </div>
           )}
@@ -87,11 +92,28 @@ export default function QuizView({ cards }) {
             </form>
           ) : (
             <div className="quiz-result">
-              {wasCorrect ? (
+              {evaluation?.level === 'strong' ? (
                 <p className="quiz-feedback correct">Strong response.</p>
+              ) : evaluation?.level === 'partial' ? (
+                <div className="quiz-feedback partial">
+                  <p><strong>Good start.</strong> You covered some core ideas.</p>
+                  {evaluation.missingKeywords.length ? (
+                    <p className="muted small">
+                      Try including: {evaluation.missingKeywords.slice(0, 4).join(', ')}.
+                    </p>
+                  ) : null}
+                  <div className="why-box top-gap">
+                    <ReasoningSections card={card} includeAnswer={questionType === 'what'} />
+                  </div>
+                </div>
               ) : (
                 <div className="quiz-feedback wrong">
                   <p><strong>Not quite yet.</strong></p>
+                  {evaluation?.missingKeywords?.length ? (
+                    <p className="muted small">
+                      Missing key ideas: {evaluation.missingKeywords.slice(0, 5).join(', ')}.
+                    </p>
+                  ) : null}
                   <div className="why-box">
                     <ReasoningSections card={card} includeAnswer={questionType === 'what'} />
                   </div>

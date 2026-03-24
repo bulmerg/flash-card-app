@@ -1,40 +1,38 @@
 import { describe, expect, it } from 'vitest'
-import { calculateSrs, cardMatches, deckToCsv, dedupeCards, parseDeckCsv } from './deckEngine'
+import { calculateSrs, cardMatches, deckToCsv, dedupeCards, groupSubtopicsByTopic, parseDeckCsv } from './deckEngine'
 
 describe('deckEngine', () => {
-  it('parses legacy 4-column CSV and defaults optional interview fields', () => {
+  it('parses Topic + Subtopics CSV and defaults optional interview fields', () => {
     const csv = [
-      'Front,Back,Why,Tags',
-      '"What is idempotency?","Same result for retries","Safe retries","api reliability"',
+      'Front,Back,Why,When,Tradeoffs,Trap,Scenario,Topic,Subtopics,IntrinsicDifficulty',
+      '"What is idempotency?","Same result for retries","Safe retries","","","","","api","reliability,retries",3',
     ].join('\n')
 
     const cards = parseDeckCsv(csv, 'Legacy')
     expect(cards).toHaveLength(1)
     expect(cards[0].front).toBe('What is idempotency?')
+    expect(cards[0].topic).toBe('api')
+    expect(cards[0].subtopics).toEqual(['reliability', 'retries'])
     expect(cards[0].when).toBe('')
     expect(cards[0].tradeoffs).toBe('')
     expect(cards[0].trap).toBe('')
     expect(cards[0].scenario).toBe('')
-    expect(cards[0].intrinsicDifficulty).toBe(2)
+    expect(cards[0].intrinsicDifficulty).toBe(3)
   })
 
-  it('parses old 5-column CSV with intrinsic difficulty', () => {
+  it('returns empty list for old tags-only CSV schema', () => {
     const csv = [
       'Front,Back,Why,Tags,IntrinsicDifficulty',
       '"What is CAP theorem?","Consistency vs availability under partition","Distributed tradeoff","distributed-systems architecture",4',
     ].join('\n')
 
-    const cards = parseDeckCsv(csv, 'OldFive')
-    expect(cards).toHaveLength(1)
-    expect(cards[0].intrinsicDifficulty).toBe(4)
-    expect(cards[0].when).toBe('')
-    expect(cards[0].tags).toEqual(['distributed-systems', 'architecture'])
+    expect(parseDeckCsv(csv, 'OldFive')).toEqual([])
   })
 
-  it('parses extended CSV columns by header name', () => {
+  it('parses new Topic + Subtopics columns by header name', () => {
     const csv = [
-      'Front,Back,Why,When,Tradeoffs,Trap,Scenario,Tags,IntrinsicDifficulty',
-      '"What is CQRS?","Separate reads/writes","Independent scaling","Read-heavy systems","Added complexity","Mixing models","Design read/write stores","system-design architecture",4',
+      'Front,Back,Why,When,Tradeoffs,Trap,Scenario,Topic,Subtopics,IntrinsicDifficulty',
+      '"What is CQRS?","Separate reads/writes","Independent scaling","Read-heavy systems","Added complexity","Mixing models","Design read/write stores","system-design","cqrs,architecture",4',
     ].join('\n')
 
     const cards = parseDeckCsv(csv, 'Extended')
@@ -44,25 +42,14 @@ describe('deckEngine', () => {
     expect(cards[0].tradeoffs).toContain('complexity')
     expect(cards[0].trap).toContain('Mixing')
     expect(cards[0].scenario).toContain('read/write')
-    expect(cards[0].tags).toEqual(['system-design', 'architecture'])
+    expect(cards[0].topic).toEqual('system-design')
+    expect(cards[0].subtopics).toEqual(['cqrs', 'architecture'])
   })
 
-  it('parses tags from tags column only with comma or spaces', () => {
-    const csv = [
-      'Front,Back,Why,When,Tradeoffs,Trap,Scenario,Tags,IntrinsicDifficulty',
-      '"What is caching?","Store hot data","Reduce latency","At read scale","Stale data","No invalidation plan","Product page surge","system-design, caching performance",3',
-    ].join('\n')
-
-    const cards = parseDeckCsv(csv, 'TagParsing')
-    expect(cards).toHaveLength(1)
-    expect(cards[0].tags).toEqual(['system-design', 'caching', 'performance'])
-    expect(cards[0].when).toBe('At read scale')
-  })
-
-  it('normalizes legacy cards with missing optional fields during dedupe', () => {
+  it('normalizes cards with missing optional fields during dedupe', () => {
     const deduped = dedupeCards([
-      { front: 'Q1', back: 'A1', why: 'W1', tags: ['test'] },
-      { front: 'Q1', back: 'A1', why: 'W1', tags: ['test'] },
+      { front: 'Q1', back: 'A1', why: 'W1', topic: 'database', subtopics: ['indexing'] },
+      { front: 'Q1', back: 'A1', why: 'W1', topic: 'database', subtopics: ['indexing'] },
     ])
 
     expect(deduped).toHaveLength(1)
@@ -81,7 +68,8 @@ describe('deckEngine', () => {
       tradeoffs: 'Requires idempotency keys',
       trap: 'Confusing with dedup at transport only',
       scenario: 'Payment endpoint retries after timeout',
-      tags: ['api'],
+      topic: 'api',
+      subtopics: ['retries'],
       srs: { dueAt: Date.now() - 1000 },
       intrinsicDifficulty: 3,
       personalDifficulty: 2,
@@ -133,11 +121,58 @@ describe('deckEngine', () => {
         tradeoffs: 'Trade',
         trap: 'Trap',
         scenario: 'Scenario',
-        tags: ['tag-one', 'tag-two'],
+        topic: 'database',
+        subtopics: ['indexing', 'performance'],
         intrinsicDifficulty: 4,
       },
     ])
-    expect(csv.split('\n')[0]).toBe('Front,Back,Why,When,Tradeoffs,Trap,Scenario,Tags,IntrinsicDifficulty')
+    expect(csv.split('\n')[0]).toBe('Front,Back,Why,When,Tradeoffs,Trap,Scenario,Topic,Subtopics,IntrinsicDifficulty')
+    expect(csv).toContain('"database"')
+    expect(csv).toContain('"indexing,performance"')
     expect(csv).toContain('"Scenario"')
+  })
+
+  it('groups subtopics under topic', () => {
+    const grouped = groupSubtopicsByTopic([
+      { topic: 'frontend', subtopics: ['react', 'performance'] },
+      { topic: 'frontend', subtopics: ['react', 'css', 'frontend'] },
+      { topic: 'backend', subtopics: ['api', 'database'] },
+    ])
+
+    expect(grouped).toEqual([
+      ['backend', [
+        { subtopic: 'api', count: 1 },
+        { subtopic: 'database', count: 1 },
+      ]],
+      ['frontend', [
+        { subtopic: 'react', count: 2 },
+        { subtopic: 'css', count: 1 },
+        { subtopic: 'performance', count: 1 },
+      ]],
+    ])
+  })
+
+  it('supports topic/subtopic filter tokens', () => {
+    const card = {
+      front: 'Q',
+      back: 'A',
+      why: 'W',
+      when: '',
+      tradeoffs: '',
+      trap: '',
+      scenario: '',
+      topic: 'database',
+      subtopics: ['indexing', 'performance'],
+      srs: { dueAt: Date.now() - 1000 },
+      intrinsicDifficulty: 3,
+      personalDifficulty: 2,
+      difficulty: 3,
+    }
+
+    const includeMatch = cardMatches(card, ['topic:database', 'sub:database:indexing'], [], '', false, 'all', { min: 1, max: 5 }, 'effective', false)
+    const excludeMiss = cardMatches(card, [], ['sub:database:indexing'], '', false, 'all', { min: 1, max: 5 }, 'effective', false)
+
+    expect(includeMatch).toBe(true)
+    expect(excludeMiss).toBe(false)
   })
 })

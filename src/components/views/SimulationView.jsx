@@ -13,7 +13,7 @@ export default function SimulationView({ cards, simCount, setSimCount }) {
   return (
     <div className="browser-panel glass">
       <div className="panel-header">
-        <h3>Interview practice</h3>
+        <h3>Explore cards</h3>
         <span>{cards.length} prompts</span>
       </div>
       <p className="muted small">Speak your answer first, then reveal a strong reference response.</p>
@@ -31,7 +31,10 @@ export default function SimulationView({ cards, simCount, setSimCount }) {
             <article key={card.id} className="simulation-card">
               <div className="card-meta">Prompt {index + 1}</div>
               <h4>{card.front}</h4>
-              <div className="chip-row">{(card.tags || []).map(tag => <span key={`${card.id}-${tag}`} className="tiny-chip">{tag}</span>)}</div>
+              <div className="chip-row">
+                {card.topic ? <span className="tiny-chip topic-chip">{card.topic}</span> : null}
+                {(card.subtopics || []).map(subtopic => <span key={`${card.id}-${subtopic}`} className="tiny-chip">{subtopic}</span>)}
+              </div>
               <div className="button-row compact top-gap">
                 <button className={revealed ? 'btn' : 'btn primary'} onClick={() => toggle(card.id)}>{revealed ? 'Hide response' : 'Reveal strong answer'}</button>
               </div>

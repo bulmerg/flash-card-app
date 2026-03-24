@@ -14,22 +14,24 @@ Status:
 
 # DATABASE / SQL
 
+- database.csv (done)
 - database_core.csv (done)
-- database_indexing.csv (todo)
-- database_query_optimization.csv (todo)
-- database_transactions.csv (todo)
-- database_schema_design.csv (todo)
-- database_scaling.csv (todo)
-- database_internals.csv (todo)
+- database_indexing.csv (done)
+- database_query_optimization.csv (done)
+- database_transactions.csv (done)
+- database_schema_design.csv (done)
+- database_scaling.csv (done)
+- database_internals.csv (done)
 
 ---
 
 # SYSTEM DESIGN
 
-- system_design_core.csv (todo)
-- scalability_patterns.csv (todo)
-- caching_patterns.csv (todo)
-- reliability_patterns.csv (todo)
+- system_design_new.csv (done)
+- system_design_core.csv (done)
+- scalability_patterns.csv (done)
+- caching_patterns.csv (done)
+- reliability_patterns.csv (done)
 - distributed_systems_core.csv (todo)
 - distributed_consistency.csv (todo)
 - distributed_messaging.csv (todo)

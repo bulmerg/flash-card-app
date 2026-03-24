@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  autoGroupTags,
   calculateSrs,
   cardMatches,
-  getPerformanceByTag,
+  getPerformanceBySubtopic,
+  getPerformanceByTopic,
+  groupSubtopicsByTopic,
   getWeakCards,
-  uniqueTags,
 } from '../lib/deckEngine'
 import { clampDifficulty, getIntrinsicDifficulty, getPersonalDifficulty, shuffle } from '../lib/shared'
 
@@ -19,8 +19,8 @@ export default function useStudySession({
   difficultySource,
   weakCardBoost,
 }) {
-  const [includeTags, setIncludeTags] = useState([])
-  const [excludeTags, setExcludeTags] = useState([])
+  const [includedFocusTokens, setIncludedFocusTokens] = useState([])
+  const [excludedFocusTokens, setExcludedFocusTokens] = useState([])
   const [search, setSearch] = useState('')
   const [currentIndex, setCurrentIndex] = useState(0)
   const [flipped, setFlipped] = useState(false)
@@ -33,16 +33,16 @@ export default function useStudySession({
     revealAtRef.current = flipped ? Date.now() : null
   }, [flipped])
 
-  const tags = useMemo(() => uniqueTags(cards), [cards])
-  const groupedTags = useMemo(() => autoGroupTags(tags), [tags])
-  const tagPerformance = useMemo(() => getPerformanceByTag(cards), [cards])
+  const focusAreaGroups = useMemo(() => groupSubtopicsByTopic(cards), [cards])
+  const topicPerformance = useMemo(() => getPerformanceByTopic(cards), [cards])
+  const subtopicPerformance = useMemo(() => getPerformanceBySubtopic(cards), [cards])
   const weakCards = useMemo(() => getWeakCards(cards), [cards])
 
   const filteredCards = useMemo(() => {
     const selected = cards.filter(card => cardMatches(
       card,
-      includeTags,
-      excludeTags,
+      includedFocusTokens,
+      excludedFocusTokens,
       search,
       dueOnly && ['study', 'quiz', 'interview'].includes(viewMode),
       difficultyFilter,
@@ -54,8 +54,8 @@ export default function useStudySession({
     return shuffle([...selected], shuffleSeed)
   }, [
     cards,
-    includeTags,
-    excludeTags,
+    includedFocusTokens,
+    excludedFocusTokens,
     search,
     dueOnly,
     viewMode,
@@ -70,8 +70,8 @@ export default function useStudySession({
   const simulationCards = useMemo(() => {
     const base = cards.filter(card => cardMatches(
       card,
-      includeTags,
-      excludeTags,
+      includedFocusTokens,
+      excludedFocusTokens,
       search,
       dueOnly,
       difficultyFilter,
@@ -82,8 +82,8 @@ export default function useStudySession({
     return shuffle([...base], simCount * 811 + 7).slice(0, simCount)
   }, [
     cards,
-    includeTags,
-    excludeTags,
+    includedFocusTokens,
+    excludedFocusTokens,
     search,
     dueOnly,
     difficultyFilter,
@@ -97,8 +97,8 @@ export default function useStudySession({
   const quizCards = useMemo(() => {
     const selected = cards.filter(card => cardMatches(
       card,
-      includeTags,
-      excludeTags,
+      includedFocusTokens,
+      excludedFocusTokens,
       search,
       dueOnly,
       difficultyFilter,
@@ -109,8 +109,8 @@ export default function useStudySession({
     return shuffle([...selected], shuffleSeed + 99)
   }, [
     cards,
-    includeTags,
-    excludeTags,
+    includedFocusTokens,
+    excludedFocusTokens,
     search,
     dueOnly,
     shuffleSeed,
@@ -136,40 +136,40 @@ export default function useStudySession({
     if (currentIndex >= filteredCards.length) setCurrentIndex(0)
   }, [filteredCards.length, currentIndex])
 
-  function toggleTag(tag, mode = 'include') {
+  function toggleFocusToken(token, mode = 'include') {
     if (mode === 'include') {
-      setExcludeTags(prev => prev.filter(item => item !== tag))
-      setIncludeTags(prev => (prev.includes(tag) ? prev.filter(item => item !== tag) : [...prev, tag]))
+      setExcludedFocusTokens(prev => prev.filter(item => item !== token))
+      setIncludedFocusTokens(prev => (prev.includes(token) ? prev.filter(item => item !== token) : [...prev, token]))
     } else {
-      setIncludeTags(prev => prev.filter(item => item !== tag))
-      setExcludeTags(prev => (prev.includes(tag) ? prev.filter(item => item !== tag) : [...prev, tag]))
+      setIncludedFocusTokens(prev => prev.filter(item => item !== token))
+      setExcludedFocusTokens(prev => (prev.includes(token) ? prev.filter(item => item !== token) : [...prev, token]))
     }
     setCurrentIndex(0)
   }
 
-  function toggleTagGroup(tagNames, mode = 'include') {
-    const uniqueTags = [...new Set((tagNames || []).filter(Boolean))]
-    if (uniqueTags.length === 0) return
+  function toggleFocusGroup(tokenList, mode = 'include') {
+    const uniqueTokens = [...new Set((tokenList || []).filter(Boolean))]
+    if (uniqueTokens.length === 0) return
 
     if (mode === 'include') {
-      setExcludeTags(prev => prev.filter(tag => !uniqueTags.includes(tag)))
-      setIncludeTags(prev => {
-        const allIncluded = uniqueTags.every(tag => prev.includes(tag))
-        if (allIncluded) return prev.filter(tag => !uniqueTags.includes(tag))
+      setExcludedFocusTokens(prev => prev.filter(token => !uniqueTokens.includes(token)))
+      setIncludedFocusTokens(prev => {
+        const allIncluded = uniqueTokens.every(token => prev.includes(token))
+        if (allIncluded) return prev.filter(token => !uniqueTokens.includes(token))
         const next = [...prev]
-        uniqueTags.forEach(tag => {
-          if (!next.includes(tag)) next.push(tag)
+        uniqueTokens.forEach(token => {
+          if (!next.includes(token)) next.push(token)
         })
         return next
       })
     } else {
-      setIncludeTags(prev => prev.filter(tag => !uniqueTags.includes(tag)))
-      setExcludeTags(prev => {
-        const allExcluded = uniqueTags.every(tag => prev.includes(tag))
-        if (allExcluded) return prev.filter(tag => !uniqueTags.includes(tag))
+      setIncludedFocusTokens(prev => prev.filter(token => !uniqueTokens.includes(token)))
+      setExcludedFocusTokens(prev => {
+        const allExcluded = uniqueTokens.every(token => prev.includes(token))
+        if (allExcluded) return prev.filter(token => !uniqueTokens.includes(token))
         const next = [...prev]
-        uniqueTags.forEach(tag => {
-          if (!next.includes(tag)) next.push(tag)
+        uniqueTokens.forEach(token => {
+          if (!next.includes(token)) next.push(token)
         })
         return next
       })
@@ -253,8 +253,8 @@ export default function useStudySession({
   }
 
   function resetSessionState() {
-    setIncludeTags([])
-    setExcludeTags([])
+    setIncludedFocusTokens([])
+    setExcludedFocusTokens([])
     setSearch('')
     setCurrentIndex(0)
     setFlipped(false)
@@ -263,10 +263,10 @@ export default function useStudySession({
   }
 
   return {
-    includeTags,
-    setIncludeTags,
-    excludeTags,
-    setExcludeTags,
+    includedFocusTokens,
+    setIncludedFocusTokens,
+    excludedFocusTokens,
+    setExcludedFocusTokens,
     search,
     setSearch,
     currentIndex,
@@ -279,15 +279,16 @@ export default function useStudySession({
     setDueOnly,
     difficultyFilter,
     setDifficultyFilter,
-    groupedTags,
-    tagPerformance,
+    focusAreaGroups,
+    topicPerformance,
+    subtopicPerformance,
     weakCards,
     filteredCards,
     simulationCards,
     quizCards,
     activeCard,
-    toggleTag,
-    toggleTagGroup,
+    toggleFocusToken,
+    toggleFocusGroup,
     reviewCard,
     setCardDifficulty,
     toggleStar,

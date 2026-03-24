@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import TagGraph from './TagGraph'
 import './AnalyticsView.scss'
 
-export default function AnalyticsView({ cards, tagPerformance, weakCards, groupedTags }) {
+export default function AnalyticsView({ cards, topicPerformance, subtopicPerformance, weakCards, focusAreaGroups }) {
   const overallAccuracy = useMemo(() => {
     const seen = cards.reduce((sum, card) => sum + (card.stats?.seen || 0), 0)
     const correct = cards.reduce((sum, card) => sum + (card.stats?.correct || 0), 0)
@@ -17,12 +17,30 @@ export default function AnalyticsView({ cards, tagPerformance, weakCards, groupe
       </div>
       <div className="analytics-grid">
         <section className="analytics-card">
-          <h4>Weak areas dashboard</h4>
+          <h4>Weak topics</h4>
           <div className="weak-list">
-            {tagPerformance.slice(0, 8).map(item => (
-              <div key={item.tag} className="weak-row">
+            {topicPerformance.slice(0, 8).map(item => (
+              <div key={item.topic} className="weak-row">
                 <div>
-                  <strong>{item.tag}</strong>
+                  <strong>{item.topic}</strong>
+                  <div className="muted small">{item.seen || 0} reviews · {item.count} cards</div>
+                </div>
+                <div className="weak-metrics">
+                  <span>{item.accuracy}%</span>
+                  <div className="bar"><div style={{ width: `${Math.max(8, item.accuracy)}%` }} /></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="analytics-card">
+          <h4>Weak subtopics</h4>
+          <div className="weak-list">
+            {subtopicPerformance.slice(0, 8).map(item => (
+              <div key={item.subtopic} className="weak-row">
+                <div>
+                  <strong>{item.subtopic}</strong>
                   <div className="muted small">{item.seen || 0} reviews · {item.count} cards</div>
                 </div>
                 <div className="weak-metrics">
@@ -47,8 +65,8 @@ export default function AnalyticsView({ cards, tagPerformance, weakCards, groupe
         </section>
 
         <section className="analytics-card span-2">
-          <h4>Tag graph visualization</h4>
-          <TagGraph groupedTags={groupedTags} performance={tagPerformance} />
+          <h4>Topic map</h4>
+          <TagGraph focusAreaGroups={focusAreaGroups} performance={topicPerformance} />
         </section>
       </div>
     </div>

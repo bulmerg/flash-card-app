@@ -5,25 +5,41 @@ import {
   getPersonalDifficulty,
 } from './shared'
 
-const DEFAULT_GROUPS = {
-  Frontend: ['react', 'angular', 'css', 'scss', 'rendering', 'forms', 'performance'],
-  Backend: ['spring', 'java', 'jvm', 'transactions', 'concurrency', 'api'],
-  Architecture: ['system-design', 'distributed-systems', 'architecture', 'scaling', 'resilience'],
-  Cloud: ['aws', 'compute', 'storage', 'messaging', 'networking'],
-  Data: ['databases', 'indexing', 'database'],
-  Security: ['security', 'auth', 'web'],
-}
-
 function normalizeNewlines(text = '') {
   return text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim()
 }
 
-function parseTagString(tags = '') {
-  return String(tags)
-    .trim()
-    .split(/[\s,]+/)
-    .map(tag => tag.trim())
+function parseSubtopicsString(value = '') {
+  return String(value)
+    .split(',')
+    .map(item => item.trim())
     .filter(Boolean)
+}
+
+function normalizeTopicValue(value = '') {
+  return String(value)
+    .toLowerCase()
+    .trim()
+    .replace(/[_\s]+/g, '-')
+    .replace(/[^a-z0-9-]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+export function normalizeClassification({ topic, subtopics }) {
+  const finalTopic = normalizeTopicValue(topic)
+  const rawSubtopics = Array.isArray(subtopics) ? subtopics : parseSubtopicsString(subtopics)
+
+  const seen = new Set()
+  const finalSubtopics = []
+  rawSubtopics.forEach(value => {
+    const normalized = normalizeTopicValue(value)
+    if (!normalized || normalized === finalTopic || seen.has(normalized)) return
+    seen.add(normalized)
+    if (finalSubtopics.length < 3) finalSubtopics.push(normalized)
+  })
+
+  return { topic: finalTopic, subtopics: finalSubtopics }
 }
 
 function slugify(value = '') {
@@ -55,30 +71,19 @@ function parseQuotedCsvLine(line) {
   return cells
 }
 
-function parseLegacyFourColumnLine(line) {
-  const quoted = parseQuotedCsvLine(line)
-  if (quoted.length === 4) return quoted
-  const firstComma = line.indexOf(',')
-  const lastComma = line.lastIndexOf(',')
-  if (firstComma === -1 || lastComma === -1 || firstComma === lastComma) return null
-  const front = line.slice(0, firstComma)
-  const tags = line.slice(lastComma + 1)
-  const middle = line.slice(firstComma + 1, lastComma)
-  const secondLastComma = middle.lastIndexOf(',')
-  if (secondLastComma === -1) return null
-  const back = middle.slice(0, secondLastComma)
-  const why = middle.slice(secondLastComma + 1)
-  return [front, back, why, tags]
-}
-
 function normalizeHeaderCell(value = '') {
   return String(value).toLowerCase().replace(/[^a-z0-9]+/g, '')
 }
 
 function looksLikeDeckHeader(cells) {
-  if (!Array.isArray(cells) || cells.length < 4) return false
+  if (!Array.isArray(cells) || cells.length < 10) return false
   const normalized = new Set(cells.map(normalizeHeaderCell))
-  return normalized.has('front') && normalized.has('back') && normalized.has('why')
+  return normalized.has('front')
+    && normalized.has('back')
+    && normalized.has('why')
+    && normalized.has('topic')
+    && normalized.has('subtopics')
+    && normalized.has('intrinsicdifficulty')
 }
 
 function parseIntrinsicDifficulty(rawValue) {
@@ -97,67 +102,27 @@ function buildHeaderIndex(headerCells = []) {
   return index
 }
 
-function looksLikeTagText(text = '') {
-  const parts = parseTagString(text)
-  return parts.length > 0 && parts.every(part => /^[a-z0-9][a-z0-9-]*$/i.test(part))
-}
-
-function repairLikelyFiveColumnMisparse(card) {
-  const tags = Array.isArray(card.tags) ? card.tags : parseTagString(card.tags)
-  const hasSingleNumericTag = tags.length === 1 && /^\d+$/.test(String(tags[0]))
-  const back = String(card.back ?? '').trim()
-  const why = String(card.why ?? '').trim()
-
-  if (!hasSingleNumericTag || !back.includes(',') || !looksLikeTagText(why)) {
-    return card
-  }
-
-  const splitIndex = back.lastIndexOf(',')
-  if (splitIndex <= 0 || splitIndex >= back.length - 1) return card
-
-  const recoveredBack = back.slice(0, splitIndex).trim()
-  const recoveredWhy = back.slice(splitIndex + 1).trim()
-  const recoveredTags = parseTagString(why)
-  if (!recoveredBack || !recoveredWhy || recoveredTags.length === 0) return card
-
-  return {
-    ...card,
-    back: recoveredBack,
-    why: recoveredWhy,
-    tags: recoveredTags,
-    intrinsicDifficulty: clampDifficulty(Number(card.intrinsicDifficulty ?? tags[0] ?? 2)),
-  }
-}
-
 function parseDeckRow(line, headerIndex = null) {
   const cells = parseQuotedCsvLine(line).map(cell => String(cell ?? '').trim())
-  if (cells.length >= 4) {
-    const readCell = (name, fallbackIndex) => {
-      if (headerIndex) {
-        if (Number.isInteger(headerIndex[name])) {
-          return String(cells[headerIndex[name]] ?? '').trim()
-        }
-        return ''
-      }
-      const idx = fallbackIndex
-      return String(cells[idx] ?? '').trim()
-    }
-    return {
-      front: readCell('front', 0),
-      back: readCell('back', 1),
-      why: readCell('why', 2),
-      tagsText: readCell('tags', 3),
-      intrinsicDifficulty: parseIntrinsicDifficulty(readCell('intrinsicdifficulty', 4)),
-      when: readCell('when', 3),
-      tradeoffs: readCell('tradeoffs', 4),
-      trap: readCell('trap', 5),
-      scenario: readCell('scenario', 6),
-    }
+  if (!headerIndex) return null
+
+  const readCell = name => {
+    if (!Number.isInteger(headerIndex[name])) return ''
+    return String(cells[headerIndex[name]] ?? '').trim()
   }
-  const legacy = parseLegacyFourColumnLine(line)
-  if (!legacy) return null
-  const [front, back, why, tagsText] = legacy
-  return { front, back, why, tagsText, intrinsicDifficulty: null, when: '', tradeoffs: '', trap: '', scenario: '' }
+
+  return {
+    front: readCell('front'),
+    back: readCell('back'),
+    why: readCell('why'),
+    when: readCell('when'),
+    tradeoffs: readCell('tradeoffs'),
+    trap: readCell('trap'),
+    scenario: readCell('scenario'),
+    topicText: readCell('topic'),
+    subtopicsText: readCell('subtopics'),
+    intrinsicDifficulty: parseIntrinsicDifficulty(readCell('intrinsicdifficulty')),
+  }
 }
 
 function defaultSrs() {
@@ -177,6 +142,7 @@ export function parseDeckCsv(rawText, sourceName = 'Imported CSV') {
   const lines = text.split('\n').filter(Boolean)
   const headerCells = parseQuotedCsvLine(lines[0]).map(cell => String(cell ?? '').trim())
   const startIndex = looksLikeDeckHeader(headerCells) ? 1 : 0
+  if (!startIndex) return []
   const headerIndex = startIndex ? buildHeaderIndex(headerCells) : null
   const cards = []
   for (let i = startIndex; i < lines.length; i += 1) {
@@ -188,14 +154,18 @@ export function parseDeckCsv(rawText, sourceName = 'Imported CSV') {
       front,
       back,
       why,
-      tagsText,
+      topicText,
+      subtopicsText,
       intrinsicDifficulty: parsedIntrinsic,
       when,
       tradeoffs,
       trap,
       scenario,
     } = parsed
-    const tags = parseTagString(tagsText)
+    const classification = normalizeClassification({
+      topic: topicText,
+      subtopics: subtopicsText,
+    })
     const intrinsicDifficulty = parsedIntrinsic ?? 2
     cards.push({
       id: `${sourceName}-${i}-${slugify(front)}`,
@@ -206,7 +176,8 @@ export function parseDeckCsv(rawText, sourceName = 'Imported CSV') {
       tradeoffs: String(tradeoffs ?? '').trim(),
       trap: String(trap ?? '').trim(),
       scenario: String(scenario ?? '').trim(),
-      tags,
+      topic: classification.topic,
+      subtopics: classification.subtopics,
       source: sourceName,
       status: 'new',
       intrinsicDifficulty,
@@ -222,35 +193,38 @@ export function parseDeckCsv(rawText, sourceName = 'Imported CSV') {
 }
 
 function ensureCardShape(card) {
-  const repaired = repairLikelyFiveColumnMisparse(card)
-  const normalizedTags = Array.isArray(repaired.tags) ? repaired.tags : parseTagString(repaired.tags)
-  const intrinsicDifficulty = clampDifficulty(Number(repaired.intrinsicDifficulty ?? repaired.difficulty ?? 2))
-  const personalDifficulty = clampDifficulty(Number(repaired.personalDifficulty ?? repaired.difficulty ?? intrinsicDifficulty))
+  const classification = normalizeClassification({
+    topic: card.topic,
+    subtopics: card.subtopics,
+  })
+  const intrinsicDifficulty = clampDifficulty(Number(card.intrinsicDifficulty ?? card.difficulty ?? 2))
+  const personalDifficulty = clampDifficulty(Number(card.personalDifficulty ?? card.difficulty ?? intrinsicDifficulty))
   const difficulty = Math.max(intrinsicDifficulty, personalDifficulty)
   return {
-    ...repaired,
-    tags: normalizedTags,
-    when: String(repaired.when ?? '').trim(),
-    tradeoffs: String(repaired.tradeoffs ?? '').trim(),
-    trap: String(repaired.trap ?? '').trim(),
-    scenario: String(repaired.scenario ?? '').trim(),
-    status: repaired.status || 'new',
+    ...card,
+    topic: classification.topic,
+    subtopics: classification.subtopics,
+    when: String(card.when ?? '').trim(),
+    tradeoffs: String(card.tradeoffs ?? '').trim(),
+    trap: String(card.trap ?? '').trim(),
+    scenario: String(card.scenario ?? '').trim(),
+    status: card.status || 'new',
     intrinsicDifficulty,
     personalDifficulty,
     difficulty,
     stats: {
-      seen: repaired.stats?.seen || 0,
-      correct: repaired.stats?.correct || 0,
-      hard: repaired.stats?.hard || 0,
-      again: repaired.stats?.again || 0,
+      seen: card.stats?.seen || 0,
+      correct: card.stats?.correct || 0,
+      hard: card.stats?.hard || 0,
+      again: card.stats?.again || 0,
     },
     srs: {
       ...defaultSrs(),
-      ...(repaired.srs || {}),
-      dueAt: Number(repaired.srs?.dueAt || Date.now()),
+      ...(card.srs || {}),
+      dueAt: Number(card.srs?.dueAt || Date.now()),
     },
-    history: Array.isArray(repaired.history) ? repaired.history : [],
-    starred: Boolean(repaired.starred),
+    history: Array.isArray(card.history) ? card.history : [],
+    starred: Boolean(card.starred),
   }
 }
 
@@ -300,7 +274,8 @@ export function mergeImportedCards(existingCards, importedCards, { overwriteIntr
       tradeoffs: String(imp.tradeoffs ?? existing.tradeoffs ?? '').trim(),
       trap: String(imp.trap ?? existing.trap ?? '').trim(),
       scenario: String(imp.scenario ?? existing.scenario ?? '').trim(),
-      tags: imp.tags,
+      topic: imp.topic || existing.topic || '',
+      subtopics: Array.isArray(imp.subtopics) ? imp.subtopics : (existing.subtopics || []),
       intrinsicDifficulty: nextIntrinsicDifficulty,
       personalDifficulty: nextPersonalDifficulty,
       difficulty: effectiveDifficulty,
@@ -314,35 +289,72 @@ export function mergeImportedCards(existingCards, importedCards, { overwriteIntr
   ]
 }
 
-export function uniqueTags(cards) {
-  const counts = new Map()
-  cards.forEach(card => card.tags.forEach(tag => counts.set(tag, (counts.get(tag) || 0) + 1)))
-  return [...counts.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([tag, count]) => ({ tag, count }))
+export function groupSubtopicsByTopic(cards) {
+  const topicGroups = new Map()
+
+  cards.forEach(card => {
+    const topic = normalizeTopicValue(card.topic)
+    if (!topic) return
+
+    if (!topicGroups.has(topic)) topicGroups.set(topic, new Map())
+    const subtopicCounts = topicGroups.get(topic)
+    const subtopics = Array.isArray(card.subtopics) ? card.subtopics : parseSubtopicsString(card.subtopics)
+    subtopics.forEach(subtopic => {
+      const normalizedSubtopic = normalizeTopicValue(subtopic)
+      if (!normalizedSubtopic || normalizedSubtopic === topic) return
+      subtopicCounts.set(normalizedSubtopic, (subtopicCounts.get(normalizedSubtopic) || 0) + 1)
+    })
+  })
+
+  return [...topicGroups.entries()]
+    .map(([topicName, subtopicCounts]) => {
+      const subtopicItems = [...subtopicCounts.entries()]
+        .map(([subtopic, count]) => ({ subtopic, count }))
+        .sort((a, b) => b.count - a.count || a.subtopic.localeCompare(b.subtopic))
+      return [topicName, subtopicItems]
+    })
+    .sort((a, b) => a[0].localeCompare(b[0]))
 }
 
-export function autoGroupTags(tags) {
-  const groups = new Map()
-  Object.keys(DEFAULT_GROUPS).forEach(group => groups.set(group, []))
-  groups.set('Other', [])
+function splitFilterTokens(tokens = []) {
+  const includeTopics = new Set()
+  const includeSubtopics = []
 
-  tags.forEach(item => {
-    const { tag } = item
-    let matchedGroup = 'Other'
-    for (const [group, keywords] of Object.entries(DEFAULT_GROUPS)) {
-      if (keywords.some(keyword => tag.includes(keyword) || keyword.includes(tag))) {
-        matchedGroup = group
-        break
-      }
+  tokens.forEach(rawToken => {
+    const token = String(rawToken || '').trim()
+    if (!token) return
+
+    if (token.startsWith('topic:')) {
+      const topic = normalizeTopicValue(token.slice(6))
+      if (topic) includeTopics.add(topic)
+      return
     }
-    groups.get(matchedGroup).push(item)
+
+    if (token.startsWith('sub:')) {
+      const payload = token.slice(4)
+      const separatorIndex = payload.indexOf(':')
+      if (separatorIndex === -1) {
+        const subtopic = normalizeTopicValue(payload)
+        if (subtopic) includeSubtopics.push({ topic: '', subtopic })
+        return
+      }
+      const topic = normalizeTopicValue(payload.slice(0, separatorIndex))
+      const subtopic = normalizeTopicValue(payload.slice(separatorIndex + 1))
+      if (subtopic) includeSubtopics.push({ topic, subtopic })
+      return
+    }
+
+    const fallbackTopic = normalizeTopicValue(token)
+    if (fallbackTopic) includeTopics.add(fallbackTopic)
   })
-  return [...groups.entries()].filter(([, items]) => items.length > 0)
+
+  return { topics: includeTopics, subtopics: includeSubtopics }
 }
 
 export function cardMatches(
   card,
-  includeTags,
-  excludeTags,
+  includedFocusTokens,
+  excludedFocusTokens,
   search,
   dueOnly,
   difficultyFilter,
@@ -350,10 +362,25 @@ export function cardMatches(
   difficultySource,
   weakCardBoost,
 ) {
-  const haystack = `${card.front} ${card.back} ${card.why} ${card.when ?? ''} ${card.tradeoffs ?? ''} ${card.trap ?? ''} ${card.scenario ?? ''} ${card.tags.join(' ')}`.toLowerCase()
+  const topic = normalizeTopicValue(card.topic)
+  const subtopics = (Array.isArray(card.subtopics) ? card.subtopics : parseSubtopicsString(card.subtopics))
+    .map(normalizeTopicValue)
+    .filter(Boolean)
+  const haystack = `${card.front} ${card.back} ${card.why} ${card.when ?? ''} ${card.tradeoffs ?? ''} ${card.trap ?? ''} ${card.scenario ?? ''} ${topic} ${subtopics.join(' ')}`.toLowerCase()
   const searchOk = !search || haystack.includes(search.toLowerCase())
-  const includeOk = includeTags.length === 0 || includeTags.some(tag => card.tags.includes(tag))
-  const excludeOk = excludeTags.length === 0 || excludeTags.every(tag => !card.tags.includes(tag))
+
+  const includeTokens = splitFilterTokens(includedFocusTokens)
+  const excludeTokens = splitFilterTokens(excludedFocusTokens)
+
+  const includeTopicOk = includeTokens.topics.size === 0 || includeTokens.topics.has(topic)
+  const includeSubtopicOk = includeTokens.subtopics.length === 0
+    || includeTokens.subtopics.some(item => (!item.topic || item.topic === topic) && subtopics.includes(item.subtopic))
+  const includeOk = includeTopicOk && includeSubtopicOk
+
+  const excludedByTopic = excludeTokens.topics.has(topic)
+  const excludedBySubtopic = excludeTokens.subtopics.some(item => (!item.topic || item.topic === topic) && subtopics.includes(item.subtopic))
+  const excludeOk = !(excludedByTopic || excludedBySubtopic)
+
   const dueOk = !dueOnly || (card.srs?.dueAt || 0) <= Date.now()
   const effectiveDifficulty = getEffectiveDifficulty(card)
   const exactDifficultyOk = difficultyFilter === 'all' || String(effectiveDifficulty) === difficultyFilter
@@ -377,19 +404,7 @@ export function cardMatches(
   return searchOk && includeOk && excludeOk && dueOk && exactDifficultyOk && (baseOk || boostOk)
 }
 
-export function getPerformanceByTag(cards) {
-  const map = new Map()
-  cards.forEach(card => {
-    card.tags.forEach(tag => {
-      const entry = map.get(tag) || { tag, seen: 0, correct: 0, hard: 0, again: 0, count: 0 }
-      entry.count += 1
-      entry.seen += card.stats?.seen || 0
-      entry.correct += card.stats?.correct || 0
-      entry.hard += card.stats?.hard || 0
-      entry.again += card.stats?.again || 0
-      map.set(tag, entry)
-    })
-  })
+function buildPerformanceEntries(map) {
   return [...map.values()]
     .map(item => ({
       ...item,
@@ -397,6 +412,41 @@ export function getPerformanceByTag(cards) {
       pressure: item.seen ? Math.round(((item.hard + item.again) / item.seen) * 100) : 0,
     }))
     .sort((a, b) => (a.accuracy + a.pressure) - (b.accuracy + b.pressure))
+}
+
+export function getPerformanceByTopic(cards) {
+  const map = new Map()
+  cards.forEach(card => {
+    const topic = normalizeTopicValue(card.topic)
+    if (!topic) return
+    const entry = map.get(topic) || { topic, seen: 0, correct: 0, hard: 0, again: 0, count: 0 }
+    entry.count += 1
+    entry.seen += card.stats?.seen || 0
+    entry.correct += card.stats?.correct || 0
+    entry.hard += card.stats?.hard || 0
+    entry.again += card.stats?.again || 0
+    map.set(topic, entry)
+  })
+  return buildPerformanceEntries(map)
+}
+
+export function getPerformanceBySubtopic(cards) {
+  const map = new Map()
+  cards.forEach(card => {
+    const subtopics = Array.isArray(card.subtopics) ? card.subtopics : parseSubtopicsString(card.subtopics)
+    subtopics.forEach(subtopic => {
+      const key = normalizeTopicValue(subtopic)
+      if (!key) return
+      const entry = map.get(key) || { subtopic: key, seen: 0, correct: 0, hard: 0, again: 0, count: 0 }
+      entry.count += 1
+      entry.seen += card.stats?.seen || 0
+      entry.correct += card.stats?.correct || 0
+      entry.hard += card.stats?.hard || 0
+      entry.again += card.stats?.again || 0
+      map.set(key, entry)
+    })
+  })
+  return buildPerformanceEntries(map)
 }
 
 export function getWeakCards(cards) {
@@ -455,9 +505,13 @@ function escapeCsv(value = '') {
 
 export function deckToCsv(cards, { includeIntrinsicDifficulty = true } = {}) {
   const header = includeIntrinsicDifficulty
-    ? 'Front,Back,Why,When,Tradeoffs,Trap,Scenario,Tags,IntrinsicDifficulty'
-    : 'Front,Back,Why,When,Tradeoffs,Trap,Scenario,Tags'
+    ? 'Front,Back,Why,When,Tradeoffs,Trap,Scenario,Topic,Subtopics,IntrinsicDifficulty'
+    : 'Front,Back,Why,When,Tradeoffs,Trap,Scenario,Topic,Subtopics'
   const rows = cards.map(card => {
+    const classification = normalizeClassification({
+      topic: card.topic,
+      subtopics: card.subtopics,
+    })
     const base = [
       escapeCsv(card.front),
       escapeCsv(card.back),
@@ -466,7 +520,8 @@ export function deckToCsv(cards, { includeIntrinsicDifficulty = true } = {}) {
       escapeCsv(card.tradeoffs ?? ''),
       escapeCsv(card.trap ?? ''),
       escapeCsv(card.scenario ?? ''),
-      escapeCsv((card.tags || []).join(' ')),
+      escapeCsv(classification.topic),
+      escapeCsv(classification.subtopics.join(',')),
     ]
     if (includeIntrinsicDifficulty) {
       base.push(escapeCsv(String(card.intrinsicDifficulty ?? 2)))

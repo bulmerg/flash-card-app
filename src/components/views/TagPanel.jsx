@@ -1,80 +1,107 @@
 import './TagPanel.scss'
 
-export default function TagPanel({ groupedTags, includeTags, excludeTags, toggleTag, toggleTagGroup }) {
-  const otherGroup = groupedTags.find(([groupName]) => groupName === 'Other')
-  const suspiciousOtherTags = (otherGroup?.[1] || []).filter(
-    item => /^\d+$/.test(String(item.tag)) || /difficulty/i.test(String(item.tag)),
-  )
-  const selectedCount = includeTags.length
-  const excludedCount = excludeTags.length
+function topicToken(topic) {
+  return `topic:${topic}`
+}
+
+function subtopicToken(topic, subtopic) {
+  return `sub:${topic}:${subtopic}`
+}
+
+function displayFilterToken(token) {
+  const value = String(token || '')
+  if (value.startsWith('topic:')) return value.slice(6)
+  if (value.startsWith('sub:')) return value.slice(4).replace(':', ' / ')
+  return value
+}
+
+export default function TagPanel({
+  focusAreaGroups,
+  includedFocusTokens,
+  excludedFocusTokens,
+  toggleFocusToken,
+  toggleFocusGroup,
+}) {
+  const selectedCount = includedFocusTokens.length
+  const excludedCount = excludedFocusTokens.length
 
   return (
     <div className="tag-panel glass">
       <div className="panel-header">
         <h3>Focus areas</h3>
-        <span>Select focus areas · minus to exclude</span>
+        <span>Select topics and subtopics · minus to exclude</span>
       </div>
       <div className="tag-summary" role="status" aria-live="polite">
         <span className="tag-summary-pill include">Selected: {selectedCount}</span>
         <span className="tag-summary-pill exclude">Excluded: {excludedCount}</span>
       </div>
-      {suspiciousOtherTags.length > 0 ? (
-        <div className="tag-panel-warning">
-          Some tags look like difficulty/header values ({suspiciousOtherTags.length}).
-          This usually means the CSV was imported with mismatched columns.
-        </div>
-      ) : null}
       <div className="active-filters">
         {selectedCount === 0 && excludedCount === 0 ? (
           <span className="active-filters-empty">No focus filters yet</span>
         ) : null}
-        {includeTags.map(tag => (
-          <span key={`i-${tag}`} className="filter-chip include">+ {tag}</span>
+        {includedFocusTokens.map(token => (
+          <span key={`i-${token}`} className="filter-chip include">+ {displayFilterToken(token)}</span>
         ))}
-        {excludeTags.map(tag => (
-          <span key={`e-${tag}`} className="filter-chip exclude">− {tag}</span>
+        {excludedFocusTokens.map(token => (
+          <span key={`e-${token}`} className="filter-chip exclude">− {displayFilterToken(token)}</span>
         ))}
       </div>
       <div className="tag-groups-scroll">
-        {groupedTags.map(([groupName, tags]) => {
-          const groupTagNames = tags.map(item => item.tag)
-          const includedInGroup = groupTagNames.filter(tag => includeTags.includes(tag)).length
-          const excludedInGroup = groupTagNames.filter(tag => excludeTags.includes(tag)).length
-          const groupSize = groupTagNames.length
-          const allIncluded = groupSize > 0 && includedInGroup === groupSize
-          const mostlyIncluded = !allIncluded && groupSize > 0 && includedInGroup >= Math.ceil(groupSize * 0.6)
-          const partiallyIncluded = !allIncluded && includedInGroup > 0
+        {focusAreaGroups.map(([groupName, subtopics]) => {
+          const topicIncludeToken = topicToken(groupName)
+          const topicExcludeToken = topicIncludeToken
+          const isTopicIncluded = includedFocusTokens.includes(topicIncludeToken)
+          const isTopicExcluded = excludedFocusTokens.includes(topicExcludeToken)
+          const includedSubtopics = subtopics.filter(item => includedFocusTokens.includes(subtopicToken(groupName, item.subtopic))).length
+          const excludedSubtopics = subtopics.filter(item => excludedFocusTokens.includes(subtopicToken(groupName, item.subtopic))).length
+          const allIncluded = isTopicIncluded && includedSubtopics === subtopics.length
+          const mostlyIncluded = isTopicIncluded || includedSubtopics >= Math.ceil(Math.max(1, subtopics.length * 0.6))
+          const partiallyIncluded = !isTopicIncluded && includedSubtopics > 0
 
           return (
             <section
               key={groupName}
-              className={`tag-group-block ${allIncluded ? 'group-selected' : ''} ${mostlyIncluded ? 'group-mostly' : ''} ${partiallyIncluded ? 'group-partial' : ''} ${excludedInGroup > 0 ? 'group-has-excluded' : ''}`}
+              className={`tag-group-block ${allIncluded ? 'group-selected' : ''} ${mostlyIncluded ? 'group-mostly' : ''} ${partiallyIncluded ? 'group-partial' : ''} ${isTopicExcluded || excludedSubtopics > 0 ? 'group-has-excluded' : ''}`}
             >
               <div className="tag-group-head">
-                <button
-                  type="button"
-                  className="tag-group-title-btn"
-                  onClick={() => toggleTagGroup(groupTagNames, 'include')}
-                  title="Include all tags in this group"
-                >
-                  {groupName}
-                </button>
+                <div className="tag-group-title-actions">
+                  <button
+                    type="button"
+                    className="tag-group-title-btn"
+                    onClick={() => toggleFocusGroup([topicIncludeToken], 'include')}
+                    title={`Include topic ${groupName}`}
+                  >
+                    {groupName}
+                  </button>
+                  <button
+                    type="button"
+                    className="tag-group-exclude-btn"
+                    onClick={() => toggleFocusToken(topicExcludeToken, 'exclude')}
+                    title={`Exclude topic ${groupName}`}
+                    aria-label={`Exclude topic ${groupName}`}
+                  >
+                    −
+                  </button>
+                </div>
                 <span className="tag-group-count">
-                  {includedInGroup > 0 ? `${includedInGroup}/${groupSize} selected` : `${groupSize} tags`}
-                  {excludedInGroup > 0 ? ` · ${excludedInGroup} excluded` : ''}
+                  {isTopicIncluded ? 'topic selected' : `${subtopics.length} subtopics`}
+                  {includedSubtopics > 0 ? ` · ${includedSubtopics} selected` : ''}
+                  {excludedSubtopics > 0 ? ` · ${excludedSubtopics} excluded` : ''}
                 </span>
               </div>
               <div className="tag-cloud">
-                {tags.map(({ tag, count }) => {
-                  const include = includeTags.includes(tag)
-                  const exclude = excludeTags.includes(tag)
+                {subtopics.map(({ subtopic, count }) => {
+                  const includeToken = subtopicToken(groupName, subtopic)
+                  const excludeToken = includeToken
+                  const include = includedFocusTokens.includes(includeToken)
+                  const exclude = excludedFocusTokens.includes(excludeToken)
                   return (
-                    <div key={tag} className={`tag-card ${include ? 'include' : ''} ${exclude ? 'exclude' : ''} ${!include && !exclude ? 'neutral' : ''}`}>
-                      <button className="tag-main" onClick={() => toggleTag(tag, 'include')} title={`Include ${tag}`}>
-                        <span className="tag-label">{tag}</span>
+                    <div key={subtopic} className={`tag-card ${include ? 'include' : ''} ${exclude ? 'exclude' : ''} ${!include && !exclude ? 'neutral' : ''}`}>
+                      <button className="tag-main" onClick={() => toggleFocusToken(includeToken, 'include')} title={`Include ${groupName}/${subtopic}`}>
+                        <span className="tag-label">{subtopic}</span>
                         <strong className="tag-count">{count}</strong>
                       </button>
-                      <button className="tag-minus" onClick={() => toggleTag(tag, 'exclude')} title={`Exclude ${tag}`} aria-label={`Exclude ${tag}`}>−</button>
+                      <button className="tag-minus" onClick={() => toggleFocusToken(excludeToken, 'exclude')} title={`Exclude ${groupName}/${subtopic}`} aria-label={`Exclude ${groupName}/${subtopic}`}>−</button>
                     </div>
                   )
                 })}

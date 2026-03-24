@@ -10,14 +10,14 @@ const HELP_SECTIONS = [
     ],
   },
   {
-    title: 'Explore cards',
+    title: 'Interview practice',
     points: [
       'Explore alternates direct answer checks and reasoning prompts when Why is available.',
       'Use it to rehearse concise interview responses, not just recognition.',
     ],
   },
   {
-    title: 'Interview',
+    title: 'Explore cards',
     points: [
       'Generates a prompt set for mock interview rounds.',
       'Reveal answers only after attempting your spoken response first.',

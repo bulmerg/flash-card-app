@@ -2,14 +2,14 @@ import TagPanelView from './views/TagPanel'
 import { useAppContext } from '../context/AppContext'
 
 export default function TagGroups() {
-  const { groupedTags, includeTags, excludeTags, toggleTag, toggleTagGroup } = useAppContext()
+  const { focusAreaGroups, includedFocusTokens, excludedFocusTokens, toggleFocusToken, toggleFocusGroup } = useAppContext()
   return (
     <TagPanelView
-      groupedTags={groupedTags}
-      includeTags={includeTags}
-      excludeTags={excludeTags}
-      toggleTag={toggleTag}
-      toggleTagGroup={toggleTagGroup}
+      focusAreaGroups={focusAreaGroups}
+      includedFocusTokens={includedFocusTokens}
+      excludedFocusTokens={excludedFocusTokens}
+      toggleFocusToken={toggleFocusToken}
+      toggleFocusGroup={toggleFocusGroup}
     />
   )
 }
